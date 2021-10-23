@@ -13,7 +13,7 @@ contract TestNFT is ERC721 {
     function mint(address sender) public returns (uint256) {
         _tokenId.increment();
         uint256 newItemId = _tokenId.current();
-        _safeMint(sender, newItemId);
+        _mint(sender, newItemId);
         return newItemId;
     }
 }
