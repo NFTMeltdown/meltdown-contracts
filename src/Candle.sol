@@ -3,9 +3,10 @@ pragma solidity ^0.8.6;
 import "ds-math/math.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract Candle is VRFConsumerBase, DSMath {
+contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     bytes32 internal keyHash;
     uint256 internal fee;
     uint256 public randomResult;
@@ -88,6 +89,7 @@ contract Candle is VRFConsumerBase, DSMath {
     ) external {
         Auction storage a = hashToAuction[keccak256(abi.encodePacked(tokenId, tokenAddress))];
         require(msg.sender == a.seller);
+        a.finalBlock = 0;
         IERC721(tokenAddress).safeTransferFrom(address(this), msg.sender, tokenId);
     }
 
@@ -131,8 +133,9 @@ contract Candle is VRFConsumerBase, DSMath {
             if (a.highestBidderAtIndex[b] != address(0)) {
                 // transfer nft to auction winner
                 IERC721(a.tokenAddress).safeTransferFrom(address(this), a.highestBidderAtIndex[b], a.tokenId);
-                // send eth back to auction starter
+                // send token back to auction starter
                 IERC20(a.bidToken).transferFrom(address(this), a.seller, a.cumululativeBidFromBidder[a.highestBidderAtIndex[b]]);
+                a.finalBlock = 0;
                 return;
             }
         }
@@ -171,4 +174,9 @@ contract Candle is VRFConsumerBase, DSMath {
     function manualFulfil(bytes32 auctionToFinalise) external {
         finaliseAuction(auctionToFinalise, uint(blockhash(block.number -1)));
     }
+
+    function onERC721Received(address, address, uint256, bytes memory) public virtual override returns(bytes4) {
+        return this.onERC721Received.selector;
+    }
+
 }
