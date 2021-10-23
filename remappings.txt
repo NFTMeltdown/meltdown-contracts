@@ -1,5 +1,4 @@
 @chainlink/=./lib/chainlink/
 ds-test/=lib/ds-test/src/
-ds-test=lib/ds-test/src/index.sol
 ds-math/=lib/ds-math/src/
 @openzeppelin/=./lib/openzeppelin-contracts/
