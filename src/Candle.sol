@@ -65,6 +65,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         address _bidToken
     )
         public
+	returns (bytes32)
     {
         require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender);
         // auction must last at least 50 blocks (10 minutes)
@@ -90,27 +91,25 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 
         blocksToFinaliseAuctions[add(_finalBlock, 1)].push(auctionId);
         emit AuctionCreated(auctionId, _closingBlock, _finalBlock, _bidToken);
+	return auctionId;
     }
 
     function cancelAuction(
-        address tokenAddress,
-        uint tokenId
+	    bytes32 auctionId
     ) external {
-        Auction storage a = hashToAuction[keccak256(abi.encodePacked(tokenId, tokenAddress))];
+        Auction storage a = hashToAuction[auctionId];
         require(msg.sender == a.seller);
         a.finalBlock = 0;
-        IERC721(tokenAddress).safeTransferFrom(address(this), msg.sender, tokenId);
+        IERC721(a.tokenAddress).safeTransferFrom(address(this), msg.sender, a.tokenId);
     }
 
     function addToBid(
-        address tokenAddress,
-        uint tokenId,
+	bytes32 auctionId,
         uint increaseBidBy
     )
         public
     {
-	bytes32 hash = keccak256(abi.encodePacked(tokenId, tokenAddress));
-        Auction storage a = hashToAuction[hash];
+        Auction storage a = hashToAuction[auctionId];
         require(block.number <= a.finalBlock, "Auction is over");
         // If we are in regular time
         uint aindex;
@@ -127,10 +126,10 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 		if (a.cumululativeBidFromBidder[msg.sender] > a.cumululativeBidFromBidder[a.currentHighestBidder]) {
 			a.highestBidderAtIndex[aindex] = msg.sender;
 			a.currentHighestBidder = msg.sender;
-			emit BidIncreased(hash, msg.sender, increaseBidBy, true);
+			emit BidIncreased(auctionId, msg.sender, increaseBidBy, true);
             }
         }
-	emit BidIncreased(hash, msg.sender, increaseBidBy, false);
+	emit BidIncreased(auctionId, msg.sender, increaseBidBy, false);
     }
 
     function finaliseAuction(

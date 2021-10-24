@@ -2,27 +2,51 @@ pragma solidity ^0.8.6;
 
 import "ds-test/test.sol";
 
-import "./utils/Hevm.sol";
-import "./Candle.sol";
-import "./TestNFT.sol";
+import "./Hevm.sol";
+import "../Candle.sol";
+import "../TestNFT.sol";
 
 interface WETH {
     function balanceOf(address) external returns (uint);
     function deposit() external payable;
+    function approve(address,uint) external;
+}
+
+contract NFTSeller {
+}
+
+contract Bidder {
+	Candle candle;
+	bytes32 auctionId;
+	WETH weth;
+
+	constructor(Candle _candle, bytes32 _auctionId) payable {
+		auctionId = _auctionId;
+		candle = _candle;
+		weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
+		weth.deposit{value: 10 ether}();
+		weth.approve(msg.sender, 2**256 - 1);
+	}
+	function increaseAuctionBid(uint bidAmount) public {
+		candle.addToBid(auctionId, bidAmount);
+	}
 }
 
 contract CandleTest is DSTest {
-
     Hevm internal constant hevm = Hevm(HEVM_ADDRESS);
 
     Candle candle;
     TestNFT nft;
     WETH weth;
+    Bidder Alice;
+    Bidder Bob;
+    NFTSeller Candice;
     
     function setUp() public {
         candle = new Candle();
         nft = new TestNFT();
         weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
+        weth.deposit{value: 1 ether}();
     }
 
     function testFail_basic_sanity() public {
@@ -38,7 +62,6 @@ contract CandleTest is DSTest {
     }
 
     function test_create_auction() public {
-        weth.deposit{value: 1 ether}();
         uint tokenId = nft.mint(address(this));
         nft.approve(address(candle), tokenId);
         candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
@@ -47,7 +70,9 @@ contract CandleTest is DSTest {
     function test_create_and_bid() public {
         uint tokenId = nft.mint(address(this));
         nft.approve(address(candle), tokenId);
-        candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+        bytes32 aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+	Alice = new Bidder{value: 10 ether}(candle, aid);
+	Bob = new Bidder{value: 10 ether}(candle, aid);
         //candle.addToBid(tokenAddress, tokenId, increaseBidBy);
     }
 }
