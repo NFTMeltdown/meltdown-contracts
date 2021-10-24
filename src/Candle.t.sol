@@ -2,9 +2,9 @@ pragma solidity ^0.8.6;
 
 import "ds-test/test.sol";
 
+import "./utils/Hevm.sol";
 import "./Candle.sol";
 import "./TestNFT.sol";
-
 
 interface WETH {
     function balanceOf(address) external returns (uint);
@@ -12,6 +12,9 @@ interface WETH {
 }
 
 contract CandleTest is DSTest {
+
+    Hevm internal constant hevm = Hevm(HEVM_ADDRESS);
+
     Candle candle;
     TestNFT nft;
     WETH weth;
@@ -20,7 +23,6 @@ contract CandleTest is DSTest {
         candle = new Candle();
         nft = new TestNFT();
         weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
-        //weth.deposit{value: 1 ether}();
     }
 
     function testFail_basic_sanity() public {
@@ -36,8 +38,16 @@ contract CandleTest is DSTest {
     }
 
     function test_create_auction() public {
+        weth.deposit{value: 1 ether}();
         uint tokenId = nft.mint(address(this));
         nft.approve(address(candle), tokenId);
         candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+    }
+
+    function test_create_and_bid() public {
+        uint tokenId = nft.mint(address(this));
+        nft.approve(address(candle), tokenId);
+        candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+        candle.addToBid(tokenAddress, tokenId, increaseBidBy);
     }
 }

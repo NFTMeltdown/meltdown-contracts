@@ -11,6 +11,8 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     uint256 internal fee;
     uint256 public randomResult;
 
+    event AuctionCreated(bytes32,uint,uint,address);
+
     mapping (bytes32 => Auction) hashToAuction;
     mapping (bytes32 => bytes32) requestIdToAuction;
     mapping (uint => bytes32[]) blocksToFinaliseAuctions;
@@ -53,7 +55,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 
     /// @dev Creates and begins a new auction
     /// @param _tokenId - NFT token id to be auctioned
-    function createAuction(
+    function createAuction (
         address _tokenAddress,
         uint _tokenId,
         uint _closingBlock,
@@ -81,6 +83,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         a.bidToken = _bidToken;
 
         blocksToFinaliseAuctions[add(_finalBlock, 1)].push(auctionId);
+        emit AuctionCreated(auctionId, _closingBlock, _finalBlock, _bidToken);
     }
 
     function cancelAuction(

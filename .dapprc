@@ -1,5 +1,2 @@
 export DAPP_REMAPPINGS=$(cat remappings.txt)
-export ETH_RPC_URL=https://mainnet.infura.io/v3/70e24b2297fb4104a0fef5b9bff3c159
-
-export DAPP_TEST_CALLER=0x405AA39C2dE1966b81903401bC2A2671c6BAe2e6
-export DAPP_TEST_ORIGIN=0x405AA39C2dE1966b81903401bC2A2671c6BAe2e6
+export ETH_RPC_URL=https://kovan.infura.io/v3/70e24b2297fb4104a0fef5b9bff3c159
