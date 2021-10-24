@@ -12,9 +12,8 @@ interface WETH {
     function approve(address,uint) external;
 }
 
-contract NFTSeller {
+contract NFTSeller{
 }
-
 contract Bidder {
 	Candle candle;
 	bytes32 auctionId;
@@ -25,7 +24,7 @@ contract Bidder {
 		candle = _candle;
 		weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
 		weth.deposit{value: 10 ether}();
-		weth.approve(msg.sender, 2**256 - 1);
+		weth.approve(address(candle), 2**256 - 1);
 	}
 	function increaseAuctionBid(uint bidAmount) public {
 		candle.addToBid(auctionId, bidAmount);
@@ -40,13 +39,24 @@ contract CandleTest is DSTest {
     WETH weth;
     Bidder Alice;
     Bidder Bob;
-    NFTSeller Candice;
+    //NFTSeller Candice;
+
+    struct Auction {
+        address tokenAddress;
+        uint tokenId;
+        address seller;
+        uint closingBlock;
+        uint finalBlock;
+        address bidToken;
+        address currentHighestBidder;
+        mapping (uint => address) highestBidderAtIndex;
+        mapping (address => uint) cumululativeBidFromBidder;
+    }
     
     function setUp() public {
         candle = new Candle();
         nft = new TestNFT();
         weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
-        weth.deposit{value: 1 ether}();
     }
 
     function testFail_basic_sanity() public {
@@ -71,8 +81,12 @@ contract CandleTest is DSTest {
         uint tokenId = nft.mint(address(this));
         nft.approve(address(candle), tokenId);
         bytes32 aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+	Auction memory a = candle.hashToAuction[aid];
 	Alice = new Bidder{value: 10 ether}(candle, aid);
 	Bob = new Bidder{value: 10 ether}(candle, aid);
+	Alice.increaseAuctionBid(1 ether);
+	hevm.roll(block.number + 1);
+	Bob.increaseAuctionBid(1.2 ether);
         //candle.addToBid(tokenAddress, tokenId, increaseBidBy);
     }
 }
