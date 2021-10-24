@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 contract TestNFT is ERC721 {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenId;
-    constructor() public ERC721("TestNFT", "TNFT") {
+    constructor() ERC721("TestNFT", "TNFT") {
     }
     // returns tokenid
     function mint(address sender) public returns (uint256) {

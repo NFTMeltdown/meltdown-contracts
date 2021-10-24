@@ -48,6 +48,6 @@ contract CandleTest is DSTest {
         uint tokenId = nft.mint(address(this));
         nft.approve(address(candle), tokenId);
         candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
-        candle.addToBid(tokenAddress, tokenId, increaseBidBy);
+        //candle.addToBid(tokenAddress, tokenId, increaseBidBy);
     }
 }

@@ -12,6 +12,8 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     uint256 public randomResult;
 
     event AuctionCreated(bytes32,uint,uint,address);
+    event BidIncreased(bytes32,address,uint,bool);
+    event AuctionFinalised(bytes32,address,uint);
 
     mapping (bytes32 => Auction) hashToAuction;
     mapping (bytes32 => bytes32) requestIdToAuction;
@@ -75,6 +77,10 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 
         bytes32 auctionId = keccak256(abi.encodePacked(_tokenId, _tokenAddress));
         Auction storage a = hashToAuction[auctionId];
+
+	// nobody has auctioned this hash before
+	require(a.tokenAddress == address(0));
+
         a.tokenAddress = _tokenAddress;
         a.tokenId = _tokenId;
         a.seller = msg.sender;
@@ -103,7 +109,8 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     )
         public
     {
-        Auction storage a = hashToAuction[keccak256(abi.encodePacked(tokenId, tokenAddress))];
+	bytes32 hash = keccak256(abi.encodePacked(tokenId, tokenAddress));
+        Auction storage a = hashToAuction[hash];
         require(block.number <= a.finalBlock, "Auction is over");
         // If we are in regular time 
         uint aindex;
@@ -120,8 +127,10 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
             if (a.cumululativeBidFromBidder[msg.sender] > a.cumululativeBidFromBidder[a.currentHighestBidder]) {
                 a.highestBidderAtIndex[aindex] = msg.sender;
                 a.currentHighestBidder = msg.sender;
+		emit BidIncreased(hash, msg.sender, increaseBidBy, true);
             }
         }
+	emit BidIncreased(hash, msg.sender, increaseBidBy, false);
     }
 
     function finaliseAuction(
@@ -134,11 +143,14 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         // work backwards from the closing block until we reach a highest bidder
         for (uint b = closing; b >= 0; b--) {
             if (a.highestBidderAtIndex[b] != address(0)) {
+		address winningBidder = a.highestBidderAtIndex[b];
+		uint winningBidAmount = a.cumululativeBidFromBidder[a.highestBidderAtIndex[b]];
                 // transfer nft to auction winner
-                IERC721(a.tokenAddress).safeTransferFrom(address(this), a.highestBidderAtIndex[b], a.tokenId);
+                IERC721(a.tokenAddress).safeTransferFrom(address(this), winningBidder, a.tokenId);
                 // send token back to auction starter
-                IERC20(a.bidToken).transferFrom(address(this), a.seller, a.cumululativeBidFromBidder[a.highestBidderAtIndex[b]]);
+                IERC20(a.bidToken).transferFrom(address(this), a.seller, winningBidAmount);
                 a.finalBlock = 0;
+		emit AuctionFinalised(auctionId, winningBidder, winningBidAmount);
                 return;
             }
         }
@@ -172,6 +184,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
 	    bytes32 auctionToFinalise = requestIdToAuction[requestId];
 	    finaliseAuction(auctionToFinalise, randomness);
+
     }
 
     function manualFulfil(bytes32 auctionToFinalise) external {
