@@ -23,7 +23,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     // LINK Token
     constructor()
     VRFConsumerBase(
-        0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9, 
+        0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9,
         0xa36085F69e2889c224210F603D836748e7dC0088
         ) {
         {
@@ -40,7 +40,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         uint finalBlock;
         address bidToken;
         // the first elements of bids will be updated during
-        // regular bidding time, the rest will be populated during bidding window. 
+        // regular bidding time, the rest will be populated during bidding window.
         address currentHighestBidder;
         mapping (uint => address) highestBidderAtIndex;
         mapping (address => uint) cumululativeBidFromBidder;
@@ -64,7 +64,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         uint _finalBlock,
         address _bidToken
     )
-        public 
+        public
     {
         require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender);
         // auction must last at least 50 blocks (10 minutes)
@@ -112,22 +112,22 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 	bytes32 hash = keccak256(abi.encodePacked(tokenId, tokenAddress));
         Auction storage a = hashToAuction[hash];
         require(block.number <= a.finalBlock, "Auction is over");
-        // If we are in regular time 
+        // If we are in regular time
         uint aindex;
         if (block.number > a.closingBlock) {
             aindex = block.number - a.closingBlock;
         }
-        uint balance = IERC20(a.bidToken).balanceOf(address(this)); 
+        uint balance = IERC20(a.bidToken).balanceOf(address(this));
         IERC20(a.bidToken).transferFrom(msg.sender, address(this), increaseBidBy);
         uint received = sub(IERC20(a.bidToken).balanceOf(address(this)), balance);
 
         a.cumululativeBidFromBidder[msg.sender] += received;
 
         if (msg.sender != a.currentHighestBidder) {
-            if (a.cumululativeBidFromBidder[msg.sender] > a.cumululativeBidFromBidder[a.currentHighestBidder]) {
-                a.highestBidderAtIndex[aindex] = msg.sender;
-                a.currentHighestBidder = msg.sender;
-		emit BidIncreased(hash, msg.sender, increaseBidBy, true);
+		if (a.cumululativeBidFromBidder[msg.sender] > a.cumululativeBidFromBidder[a.currentHighestBidder]) {
+			a.highestBidderAtIndex[aindex] = msg.sender;
+			a.currentHighestBidder = msg.sender;
+			emit BidIncreased(hash, msg.sender, increaseBidBy, true);
             }
         }
 	emit BidIncreased(hash, msg.sender, increaseBidBy, false);
@@ -158,7 +158,8 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 
     function checkUpkeep(
         bytes calldata checkData
-    ) external 
+    ) 
+    external 
     returns (
         bool upkeepNeeded,
         bytes memory performData
