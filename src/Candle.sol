@@ -5,19 +5,24 @@ import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
+    using Counters for Counters.Counter;
+
+    Counters.Counter private auctionIdCounter;
+
     bytes32 internal keyHash;
     uint256 internal fee;
     uint256 public randomResult;
 
-    event AuctionCreated(bytes32,uint,uint,address);
-    event BidIncreased(bytes32,address,uint,bool);
-    event AuctionFinalised(bytes32,address,uint);
+    event AuctionCreated(uint,uint,uint,address);
+    event BidIncreased(uint,address,uint,bool);
+    event AuctionFinalised(uint,address,uint);
 
-    mapping (bytes32 => Auction) hashToAuction;
-    mapping (bytes32 => bytes32) requestIdToAuction;
-    mapping (uint => bytes32[]) blocksToFinaliseAuctions;
+    mapping (uint => Auction) idToAuction;
+    mapping (bytes32 => uint) requestIdToAuction;
+    mapping (uint => uint[]) blocksToFinaliseAuctions;
 
     // VRFCoordinator
     // LINK Token
@@ -39,8 +44,8 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         uint closingBlock;
         uint finalBlock;
         address bidToken;
-        // the first elements of bids will be updated during
-        // regular bidding time, the rest will be populated during bidding window.
+        // the first element of bids will be updated during
+        // regular bidding time, the following elements will increase during bidding window.
         address currentHighestBidder;
         mapping (uint => address) highestBidderAtIndex;
         mapping (address => uint) cumululativeBidFromBidder;
@@ -65,7 +70,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         address _bidToken
     )
         public
-	returns (bytes32)
+	returns (uint)
     {
         require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender);
         // auction must last at least 50 blocks (10 minutes)
@@ -76,12 +81,9 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 
         IERC721(_tokenAddress).safeTransferFrom(msg.sender, address(this), _tokenId);
 
-        bytes32 auctionId = keccak256(abi.encodePacked(_tokenId, _tokenAddress));
-        Auction storage a = hashToAuction[auctionId];
-
-	// nobody has auctioned this hash before
-	require(a.tokenAddress == address(0));
-
+        uint auctionId = auctionIdCounter.current();
+	auctionIdCounter.increment();
+        Auction storage a = idToAuction[auctionId];
         a.tokenAddress = _tokenAddress;
         a.tokenId = _tokenId;
         a.seller = msg.sender;
@@ -94,22 +96,33 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 	return auctionId;
     }
 
+    function getHighestBid(
+	    uint auctionId
+    )
+    view
+    public
+    returns (address, uint)
+    {
+	    Auction storage a = idToAuction[auctionId];
+	    return (a.currentHighestBidder, a.cumululativeBidFromBidder[a.currentHighestBidder]);
+    }
+
     function cancelAuction(
-	    bytes32 auctionId
+	    uint auctionId
     ) external {
-        Auction storage a = hashToAuction[auctionId];
+        Auction storage a = idToAuction[auctionId];
         require(msg.sender == a.seller);
         a.finalBlock = 0;
         IERC721(a.tokenAddress).safeTransferFrom(address(this), msg.sender, a.tokenId);
     }
 
     function addToBid(
-	bytes32 auctionId,
+	uint auctionId,
         uint increaseBidBy
     )
-        public
+        external
     {
-        Auction storage a = hashToAuction[auctionId];
+        Auction storage a = idToAuction[auctionId];
         require(block.number <= a.finalBlock, "Auction is over");
         // If we are in regular time
         uint aindex;
@@ -133,26 +146,53 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     }
 
     function finaliseAuction(
-	    bytes32 auctionId,
+	    uint auctionId,
 	    uint256 randomness
     ) internal {
-        Auction storage a  = hashToAuction[auctionId];
+        Auction storage a  = idToAuction[auctionId];
         require(block.number > a.finalBlock);
         uint closing = randomness % add(sub(a.finalBlock, a.closingBlock), 1);
+	a.finalBlock = 0;
         // work backwards from the closing block until we reach a highest bidder
         for (uint b = closing; b >= 0; b--) {
             if (a.highestBidderAtIndex[b] != address(0)) {
-		address winningBidder = a.highestBidderAtIndex[b];
-		uint winningBidAmount = a.cumululativeBidFromBidder[a.highestBidderAtIndex[b]];
-                // transfer nft to auction winner
-                IERC721(a.tokenAddress).safeTransferFrom(address(this), winningBidder, a.tokenId);
-                // send token back to auction starter
-                IERC20(a.bidToken).transferFrom(address(this), a.seller, winningBidAmount);
-                a.finalBlock = 0;
-		emit AuctionFinalised(auctionId, winningBidder, winningBidAmount);
-                return;
+		a.currentHighestBidder = a.highestBidderAtIndex[b];
+		uint winningBidAmount = a.cumululativeBidFromBidder[a.currentHighestBidder];
+		emit AuctionFinalised(auctionId, a.currentHighestBidder, winningBidAmount);
+		return;
             }
         }
+	// there were no bids at all. 
+	// transfer NFT back to sender.
+	emit AuctionFinalised(auctionId, address(0), 0);
+    }
+
+    function withdraw(
+	    uint auctionId
+    )
+    external
+    {
+	    Auction storage a  = idToAuction[auctionId];
+	    require(a.finalBlock == 0, "Auction not finalised");
+	    if (msg.sender != a.seller) {
+		    // sender won the auction, transfer them the NFT
+		    // otherwise sender lost, transfer them their money back.
+		    if (msg.sender == a.currentHighestBidder) {
+			    IERC721(a.tokenAddress).safeTransferFrom(address(this), msg.sender, a.tokenId);
+		    } else {
+			    uint senderLosingBidAmount = a.cumululativeBidFromBidder[msg.sender];
+			    IERC20(a.bidToken).transferFrom(address(this), msg.sender, senderLosingBidAmount);
+		    }
+	    } else {
+		    // if there were no bids, return nft
+		    // otherwise return proceeds.
+		    if (a.currentHighestBidder == address(0)) {
+			    IERC721(a.tokenAddress).safeTransferFrom(address(this), msg.sender, a.tokenId);
+		    } else {
+			    uint winningBidAmount = a.cumululativeBidFromBidder[a.currentHighestBidder];
+			    IERC20(a.bidToken).transferFrom(address(this), msg.sender, winningBidAmount);
+		    }
+	    }
     }
 
     function checkUpkeep(
@@ -182,13 +222,12 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     }
 
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
-	    bytes32 auctionToFinalise = requestIdToAuction[requestId];
+	    uint auctionToFinalise = requestIdToAuction[requestId];
 	    finaliseAuction(auctionToFinalise, randomness);
-
     }
 
-    function manualFulfil(bytes32 auctionToFinalise) external {
-        finaliseAuction(auctionToFinalise, uint(blockhash(block.number -1)));
+    function manualFulfil(uint auctionToFinalise) external {
+	finaliseAuction(auctionToFinalise, uint(blockhash(block.number -1)));
     }
 
     function onERC721Received(address, address, uint256, bytes memory) public virtual override returns(bytes4) {
