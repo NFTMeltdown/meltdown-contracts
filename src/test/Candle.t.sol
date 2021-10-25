@@ -33,6 +33,13 @@ contract Bidder {
 	function withdrawBid() public {
 		candle.withdraw(auctionId);
 	}
+
+	function balance() public returns (uint) {
+		return weth.balanceOf(address(this));
+	}
+	function onERC721Received(address, address, uint256, bytes memory) public returns(bytes4) {
+		return this.onERC721Received.selector;
+	}
 }
 
 contract CandleTest is DSTest {
@@ -56,6 +63,8 @@ contract CandleTest is DSTest {
         mapping (uint => address) highestBidderAtIndex;
         mapping (address => uint) cumululativeBidFromBidder;
     }
+
+    event Print(string msg, uint value);
     
     function setUp() public {
         candle = new Candle();
@@ -142,12 +151,73 @@ contract CandleTest is DSTest {
 	candle.manualFulfil(aid);
     }
 
-    function test_finalise_withdraw() public {
+    // Testing NFT correctly returned if there are no bids at all.
+    function test_no_bids_withdraw() public {
         uint tokenId = nft.mint(address(this));
+	assertEq(nft.balanceOf(address(this)), 1);
         nft.approve(address(candle), tokenId);
         uint aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
-	Alice = new Bidder{value: 10 ether}(candle, aid);
-	Bob = new Bidder{value: 10 ether}(candle, aid);
+	assertEq(nft.balanceOf(address(this)), 0);
+	hevm.roll(block.number + 152);
+	candle.manualFulfil(aid);
+	candle.withdraw(aid);
+	assertEq(nft.balanceOf(address(this)), 1);
     }
 
+    // Testing NFT correctly returned if there are was one bid.
+    // Bidder should be able to withdraw NFT.
+    // Seller should be able to withdraw deposited tokens.
+    function test_one_bid_withdraw() public {
+        uint tokenId = nft.mint(address(this));
+	assertEq(nft.balanceOf(address(this)), 1);
+        nft.approve(address(candle), tokenId);
+        uint aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+	assertEq(nft.balanceOf(address(this)), 0);
+	Alice = new Bidder{value: 10 ether}(candle, aid);
+	assertEq(Alice.balance(), 10 ether);
+	Alice.increaseAuctionBid(1 ether);
+	assertEq(Alice.balance(), 9 ether);
+	hevm.roll(block.number + 152);
+	candle.manualFulfil(aid);
+	candle.withdraw(aid);
+	assertEq(nft.balanceOf(address(this)), 0);
+	assertEq(weth.balanceOf(address(this)), 1 ether);
+	Alice.withdrawBid();
+	assertEq(nft.balanceOf(address(Alice)), 1);
+    }
+	
+
+    // Testing 2 bid NFT withdraw
+    function test_two_bid_withdraw() public {
+        uint tokenId = nft.mint(address(this));
+	assertEq(nft.balanceOf(address(this)), 1);
+        nft.approve(address(candle), tokenId);
+        uint aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+	assertEq(nft.balanceOf(address(this)), 0);
+	Alice = new Bidder{value: 10 ether}(candle, aid);
+	Bob = new Bidder{value: 10 ether}(candle, aid);
+	assertEq(Alice.balance(), 10 ether);
+	assertEq(Bob.balance(), 10 ether);
+	Alice.increaseAuctionBid(1 ether);
+	hevm.roll(block.number + 1);
+	Bob.increaseAuctionBid(2 ether);
+	assertEq(Alice.balance(), 9 ether);
+	assertEq(Bob.balance(), 8 ether);
+	hevm.roll(block.number + 152);
+	candle.manualFulfil(aid);
+	candle.withdraw(aid);
+	assertEq(nft.balanceOf(address(this)), 0);
+	assertEq(weth.balanceOf(address(this)), 2 ether);
+	Alice.withdrawBid();
+	assertEq(Alice.balance(), 10 ether);
+	assertEq(nft.balanceOf(address(Alice)), 0);
+
+	Bob.withdrawBid();
+	assertEq(Bob.balance(), 8 ether);
+	assertEq(nft.balanceOf(address(Bob)), 1);
+    }
+
+    function onERC721Received(address, address, uint256, bytes memory) public returns(bytes4) {
+        return this.onERC721Received.selector;
+    }
 }

@@ -155,7 +155,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         uint closing = randomness % add(sub(a.finalBlock, a.closingBlock), 1);
 	a.finalBlock = 0;
         // work backwards from the closing block until we reach a highest bidder
-        for (uint b = closing + 1; b > 0; b--) {
+        for (uint b = closing+1; b > 0; b--) {
             if (a.highestBidderAtIndex[b-1] != address(0)) {
 		a.currentHighestBidder = a.highestBidderAtIndex[b-1];
 		uint winningBidAmount = a.cumululativeBidFromBidder[a.currentHighestBidder];
@@ -227,8 +227,9 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 	    finaliseAuction(auctionToFinalise, randomness);
     }
 
-    function manualFulfil(uint auctionToFinalise) external {
+    function manualFulfil(uint auctionToFinalise) external returns (uint) {
 	finaliseAuction(auctionToFinalise, uint(blockhash(block.number -1)));
+	return uint(blockhash(block.number -1));
     }
 
     function onERC721Received(address, address, uint256, bytes memory) public virtual override returns(bytes4) {
