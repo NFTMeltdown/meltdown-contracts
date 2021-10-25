@@ -124,10 +124,11 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     {
         Auction storage a = idToAuction[auctionId];
         require(block.number <= a.finalBlock, "Auction is over");
-        // If we are in regular time
+        // If we are in regular time, aindex=0
+        // Otherwise, start indexing from 1.
         uint aindex;
-        if (block.number > a.closingBlock) {
-            aindex = block.number - a.closingBlock;
+        if (block.number >= a.closingBlock) {
+            aindex = block.number - a.closingBlock + 1;
         }
         uint balance = IERC20(a.bidToken).balanceOf(address(this));
         IERC20(a.bidToken).transferFrom(msg.sender, address(this), increaseBidBy);
