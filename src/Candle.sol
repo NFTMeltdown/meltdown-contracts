@@ -17,7 +17,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
     uint256 public randomResult;
 
     event AuctionCreated(uint,uint,uint,address);
-    event BidIncreased(uint,address,uint,bool);
+    event BidIncreased(uint,uint,address,uint,bool);
     event AuctionFinalised(uint,address,uint);
 
     mapping (uint => Auction) idToAuction;
@@ -140,10 +140,11 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 		if (a.cumululativeBidFromBidder[msg.sender] > a.cumululativeBidFromBidder[a.currentHighestBidder]) {
 			a.highestBidderAtIndex[aindex] = msg.sender;
 			a.currentHighestBidder = msg.sender;
-			emit BidIncreased(auctionId, msg.sender, increaseBidBy, true);
+			emit BidIncreased(auctionId, aindex,msg.sender, increaseBidBy, true);
+			return;
             }
         }
-	emit BidIncreased(auctionId, msg.sender, increaseBidBy, false);
+	emit BidIncreased(auctionId, aindex,msg.sender, increaseBidBy, false);
     }
 
     function finaliseAuction(

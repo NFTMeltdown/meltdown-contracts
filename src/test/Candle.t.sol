@@ -260,6 +260,72 @@ contract CandleTest is DSTest {
 	assertEq(nft.balanceOf(address(Bob)), 0);
 	assertEq(Bob.balance(), 10 ether);
     }
+    // Alice bets on finalBlock-1 - 1
+    // Bob bets on finalBlock - 2eth 
+    // Auction finalised on finalBlock
+    function test_final_block() public {
+        uint tokenId = nft.mint(address(this));
+        nft.approve(address(candle), tokenId);
+        uint aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+	Alice = new Bidder{value: 10 ether}(candle, aid);
+	Bob = new Bidder{value: 10 ether}(candle, aid);
+	// Put us in the first block of the bidding window.
+	hevm.roll(block.number + 149);
+	Alice.increaseAuctionBid(1 ether);
+	hevm.roll(block.number + 1);
+	Bob.increaseAuctionBid(2 ether);
+	hevm.roll(block.number + 10);
+	// Finalise on the first closingBlock (randomness=0)
+	candle.manualFulfil(aid, 50);
+	(address highest, uint amount) = candle.getHighestBid(aid);
+	assertEq(highest, address(Bob));
+	assertEq(amount, 2 ether);
+
+	candle.withdraw(aid);
+	assertEq(nft.balanceOf(address(this)), 0);
+	assertEq(weth.balanceOf(address(this)), 2 ether);
+
+	Alice.withdrawBid();
+	assertEq(nft.balanceOf(address(Alice)), 0);
+	assertEq(Alice.balance(), 10 ether);
+	Bob.withdrawBid();
+	assertEq(nft.balanceOf(address(Bob)), 1);
+	assertEq(Bob.balance(), 8 ether);
+    }
+
+    // Alice bids on closingBlock + 3
+    // Bob bids on closingBlock + 10
+    // Auction finalises on closingBlock + 5, Alice wins.
+    function test_finalise_halfway() public {
+        uint tokenId = nft.mint(address(this));
+        nft.approve(address(candle), tokenId);
+	uint startBlock = block.number;
+        uint aid = candle.createAuction(address(nft), tokenId, startBlock + 100, startBlock + 150, address(weth));
+	Alice = new Bidder{value: 10 ether}(candle, aid);
+	Bob = new Bidder{value: 10 ether}(candle, aid);
+	// Put us in the first block of the bidding window.
+	hevm.roll(startBlock + 103);
+	Alice.increaseAuctionBid(1 ether);
+	hevm.roll(startBlock + 110);
+	Bob.increaseAuctionBid(2 ether);
+	hevm.roll(startBlock + 160);
+	// Finalise on the first closingBlock (randomness=0)
+	candle.manualFulfil(aid, 5);
+	(address highest, uint amount) = candle.getHighestBid(aid);
+	assertEq(highest, address(Alice));
+	assertEq(amount, 1 ether);
+
+	candle.withdraw(aid);
+	assertEq(nft.balanceOf(address(this)), 0);
+	assertEq(weth.balanceOf(address(this)), 1 ether);
+
+	Alice.withdrawBid();
+	assertEq(nft.balanceOf(address(Alice)), 1);
+	assertEq(Alice.balance(), 9 ether);
+	Bob.withdrawBid();
+	assertEq(nft.balanceOf(address(Bob)), 0);
+	assertEq(Bob.balance(), 10 ether);
+    }
 
     function onERC721Received(address, address, uint256, bytes memory) public returns(bytes4) {
         return this.onERC721Received.selector;
