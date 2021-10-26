@@ -12,8 +12,6 @@ interface WETH {
     function approve(address,uint) external;
 }
 
-contract NFTSeller{
-}
 contract Bidder {
 	Candle candle;
 	uint auctionId;
@@ -50,7 +48,6 @@ contract CandleTest is DSTest {
     WETH weth;
     Bidder Alice;
     Bidder Bob;
-    //NFTSeller Candice;
 
     struct Auction {
         address tokenAddress;
@@ -197,7 +194,6 @@ contract CandleTest is DSTest {
 	hevm.roll(block.number + 1);
 	Alice.withdrawBid();
     }
-
 
     // Testing 2 bid NFT withdraw
     // Bob wins the auction and should be able to withdraw a NFT
