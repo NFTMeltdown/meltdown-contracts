@@ -244,12 +244,15 @@ contract CandleTest is DSTest {
 	// Put us in the first block of the bidding window.
 	hevm.roll(block.number + 100);
 	Alice.increaseAuctionBid(1 ether);
-	hevm.roll(block.number + 101);
+	hevm.roll(block.number + 1);
 	Bob.increaseAuctionBid(2 ether);
+	hevm.roll(block.number + 60);
+	// Finalise on the first closingBlock (randomness=0)
 	candle.manualFulfil(aid, 0);
 	(address highest, uint amount) = candle.getHighestBid(aid);
 	assertEq(highest, address(Alice));
-	assertEq(amount, 1);
+	assertEq(amount, 1 ether);
+
 	Alice.withdrawBid();
 	assertEq(nft.balanceOf(address(Alice)), 1);
 	assertEq(Alice.balance(), 9 ether);
