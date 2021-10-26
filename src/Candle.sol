@@ -151,8 +151,8 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 	    uint256 randomness
     ) internal {
         Auction storage a  = idToAuction[auctionId];
-        require(block.number > a.finalBlock);
-        uint closing = randomness % add(sub(a.finalBlock, a.closingBlock), 1);
+        require(block.number > a.finalBlock, "Auction is not over");
+        uint closing = add(randomness % sub(a.finalBlock, a.closingBlock), 1);
 	a.finalBlock = 0;
         // work backwards from the closing block until we reach a highest bidder
         for (uint b = closing+1; b > 0; b--) {
