@@ -135,7 +135,7 @@ contract CandleTest is DSTest {
         nft.approve(address(candle), tokenId);
         uint aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
 	hevm.roll(block.number + 105);
-	candle.manualFulfil(aid);
+	candle.manualFulfil(aid, uint(blockhash(block.number - 1)));
     }
 
     function test_finalise_auction() public {
@@ -148,7 +148,7 @@ contract CandleTest is DSTest {
 	hevm.roll(block.number + 1);
 	Bob.increaseAuctionBid(2 ether);
 	hevm.roll(block.number + 152);
-	candle.manualFulfil(aid);
+	candle.manualFulfil(aid, uint(blockhash(block.number - 1)));
     }
 
     // Testing NFT correctly returned if there are no bids at all.
@@ -159,7 +159,7 @@ contract CandleTest is DSTest {
         uint aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
 	assertEq(nft.balanceOf(address(this)), 0);
 	hevm.roll(block.number + 152);
-	candle.manualFulfil(aid);
+	candle.manualFulfil(aid, uint(blockhash(block.number - 1)));
 	candle.withdraw(aid);
 	assertEq(nft.balanceOf(address(this)), 1);
     }
@@ -178,16 +178,31 @@ contract CandleTest is DSTest {
 	Alice.increaseAuctionBid(1 ether);
 	assertEq(Alice.balance(), 9 ether);
 	hevm.roll(block.number + 152);
-	candle.manualFulfil(aid);
+	candle.manualFulfil(aid, uint(blockhash(block.number - 1)));
 	candle.withdraw(aid);
 	assertEq(nft.balanceOf(address(this)), 0);
 	assertEq(weth.balanceOf(address(this)), 1 ether);
 	Alice.withdrawBid();
 	assertEq(nft.balanceOf(address(Alice)), 1);
     }
-	
+
+    function testFail_withdraw_early() public {
+        uint tokenId = nft.mint(address(this));
+	assertEq(nft.balanceOf(address(this)), 1);
+        nft.approve(address(candle), tokenId);
+        uint aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+	assertEq(nft.balanceOf(address(this)), 0);
+	Alice = new Bidder{value: 10 ether}(candle, aid);
+	Alice.increaseAuctionBid(1 ether);
+	hevm.roll(block.number + 1);
+	Alice.withdraw();
+    }
+
 
     // Testing 2 bid NFT withdraw
+    // Bob wins the auction and should be able to withdraw a NFT
+    // Alice loses the auction and can withdraw her bid
+    // NFT Owner withdraws Bobs bid. 
     function test_two_bid_withdraw() public {
         uint tokenId = nft.mint(address(this));
 	assertEq(nft.balanceOf(address(this)), 1);
@@ -204,7 +219,7 @@ contract CandleTest is DSTest {
 	assertEq(Alice.balance(), 9 ether);
 	assertEq(Bob.balance(), 8 ether);
 	hevm.roll(block.number + 152);
-	candle.manualFulfil(aid);
+	candle.manualFulfil(aid, uint(blockhash(block.number - 1)));
 	candle.withdraw(aid);
 	assertEq(nft.balanceOf(address(this)), 0);
 	assertEq(weth.balanceOf(address(this)), 2 ether);
@@ -215,6 +230,32 @@ contract CandleTest is DSTest {
 	Bob.withdrawBid();
 	assertEq(Bob.balance(), 8 ether);
 	assertEq(nft.balanceOf(address(Bob)), 1);
+    }
+
+    // Alice bets on closingBlock
+    // Bob bets on closingBlock + 1
+    // Auction finalised on closingBlock
+    function test_closing_window() public {
+        uint tokenId = nft.mint(address(this));
+        nft.approve(address(candle), tokenId);
+        uint aid = candle.createAuction(address(nft), tokenId, block.number + 100, block.number + 150, address(weth));
+	Alice = new Bidder{value: 10 ether}(candle, aid);
+	Bob = new Bidder{value: 10 ether}(candle, aid);
+	// Put us in the first block of the bidding window.
+	hevm.roll(block.number + 100);
+	Alice.increaseAuctionBid(1 ether);
+	hevm.roll(block.number + 101);
+	Bob.increaseAuctionBid(2 ether);
+	candle.manualFulfil(aid, 0);
+	(address highest, uint amount) = candle.getHighestBid(aid);
+	assertEq(highest, address(Alice));
+	assertEq(amount, 1);
+	Alice.withdraw();
+	assertEq(nft.balanceOf(address(Alice)), 1);
+	assertEq(Alice.balance(), 9 ether);
+	Bob.withdraw();
+	assertEq(nft.balanceOf(address(Bob)), 0);
+	assertEq(Bob.balance(), 10 ether);
     }
 
     function onERC721Received(address, address, uint256, bytes memory) public returns(bytes4) {

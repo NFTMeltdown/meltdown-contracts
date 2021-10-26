@@ -227,9 +227,9 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
 	    finaliseAuction(auctionToFinalise, randomness);
     }
 
-    function manualFulfil(uint auctionToFinalise) external returns (uint) {
-	finaliseAuction(auctionToFinalise, uint(blockhash(block.number -1)));
-	return uint(blockhash(block.number -1));
+    function manualFulfil(uint auctionToFinalise, uint randomness) external returns (uint) {
+	finaliseAuction(auctionToFinalise, randomness);
+	return randomness;
     }
 
     function onERC721Received(address, address, uint256, bytes memory) public virtual override returns(bytes4) {
