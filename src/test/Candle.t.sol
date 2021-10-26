@@ -195,7 +195,7 @@ contract CandleTest is DSTest {
 	Alice = new Bidder{value: 10 ether}(candle, aid);
 	Alice.increaseAuctionBid(1 ether);
 	hevm.roll(block.number + 1);
-	Alice.withdraw();
+	Alice.withdrawBid();
     }
 
 
@@ -250,10 +250,10 @@ contract CandleTest is DSTest {
 	(address highest, uint amount) = candle.getHighestBid(aid);
 	assertEq(highest, address(Alice));
 	assertEq(amount, 1);
-	Alice.withdraw();
+	Alice.withdrawBid();
 	assertEq(nft.balanceOf(address(Alice)), 1);
 	assertEq(Alice.balance(), 9 ether);
-	Bob.withdraw();
+	Bob.withdrawBid();
 	assertEq(nft.balanceOf(address(Bob)), 0);
 	assertEq(Bob.balance(), 10 ether);
     }
