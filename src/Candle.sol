@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
+/// @title A candle-auction contract for ERC721 tokens.
+/// @author calebcheng00 and VasilyGerrans
 contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Receiver {
     using Counters for Counters.Counter;
 
@@ -18,19 +20,17 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     uint256 public randomResult;
 
     event AuctionCreated(uint256, uint256, uint256, address);
-    event BidIncreased(uint256, uint256, address, uint256, bool);
     event AuctionFinalised(uint256, address, uint256);
+    event BidIncreased(uint256, uint256, address, uint256, bool);
 
     mapping(uint256 => Auction) idToAuction;
     mapping(bytes32 => uint256) requestIdToAuction;
     mapping(uint256 => uint256[]) blocksToFinaliseAuctions;
 
-    // VRFCoordinator
-    // LINK Token
     constructor()
         VRFConsumerBase(
-            0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9,
-            0xa36085F69e2889c224210F603D836748e7dC0088
+            0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9, // VRFCoordinator
+            0xa36085F69e2889c224210F603D836748e7dC0088  // LINK Token Address
         )
     {
         {
@@ -46,8 +46,6 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         uint256 closingBlock;
         uint256 finalBlock;
         address bidToken;
-        // the first element of bids will be updated during
-        // regular bidding time, the following elements will increase during bidding window.
         address currentHighestBidder;
         mapping(uint256 => address) highestBidderAtIndex;
         mapping(address => uint256) cumululativeBidFromBidder;
@@ -62,8 +60,6 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         _;
     }
 
-    /// @dev Creates and begins a new auction
-    /// @param _tokenId - NFT token id to be auctioned
     function createAuction(
         address _tokenAddress,
         uint256 _tokenId,
@@ -72,7 +68,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         address _bidToken
     ) public returns (uint256) {
         require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender);
-        // auction must last at least 50 blocks (10 minutes)
+        // auction must last at least 50 blocks (~ 10 minutes)
         require(_closingBlock > add(block.number, 50));
         // require at least 20 (~240s) closing blocks
         uint256 closingWindow = sub(_finalBlock, _closingBlock);
@@ -94,6 +90,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         a.finalBlock = _finalBlock;
         a.bidToken = _bidToken;
 
+	// Plan to finalise the block straight afte rthe auction finishes
         blocksToFinaliseAuctions[add(_finalBlock, 1)].push(auctionId);
         emit AuctionCreated(auctionId, _closingBlock, _finalBlock, _bidToken);
         return auctionId;
@@ -114,6 +111,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     function cancelAuction(uint256 auctionId) external {
         Auction storage a = idToAuction[auctionId];
         require(msg.sender == a.seller);
+        require(block.number < a.closingBlock);
         a.finalBlock = 0;
         IERC721(a.tokenAddress).safeTransferFrom(
             address(this),
