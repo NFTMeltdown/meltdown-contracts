@@ -245,7 +245,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         }
     }
 
-    function performUpkeep(bytes calldata /* performData*/ ) external override {
+    function performUpkeep(bytes calldata performData ) external override {
         uint256 blockNum = abi.decode(performData, (uint256));
         require(
             LINK.balanceOf(address(this)) >=
