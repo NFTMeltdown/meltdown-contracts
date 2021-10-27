@@ -2,12 +2,13 @@ pragma solidity ^0.8.6;
 
 import "ds-math/math.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
+contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Receiver {
     using Counters for Counters.Counter;
 
     Counters.Counter private auctionIdCounter;
@@ -235,8 +236,8 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         }
     }
 
-    function checkUpkeep(bytes calldata checkData)
-        external
+    function checkUpkeep(bytes calldata /* checkData */)
+        external override
         returns (bool upkeepNeeded, bytes memory performData)
     {
         if (blocksToFinaliseAuctions[block.number].length > 0) {
@@ -246,7 +247,7 @@ contract Candle is VRFConsumerBase, DSMath, IERC721Receiver {
         }
     }
 
-    function performUpkeep(bytes calldata performData) external {
+    function performUpkeep(bytes calldata /* performData*/ ) external override {
         uint256 blockNum = abi.decode(performData, (uint256));
         require(
             LINK.balanceOf(address(this)) >=
