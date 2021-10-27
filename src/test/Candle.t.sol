@@ -341,8 +341,8 @@ contract CandleTest is DSTest {
 	// Finalise on the first closingBlock (randomness=0)
 	candle.manualFulfil(aid, 11);
 	(address highest, uint amount) = candle.getHighestBid(aid);
-	assertEq(highest, address(Alice));
-	assertEq(amount, 1 ether);
+	assertEq(highest, address(Bob));
+	assertEq(amount, 2 ether);
 
 	candle.withdraw(aid);
 	assertEq(nft.balanceOf(address(this)), 0);
