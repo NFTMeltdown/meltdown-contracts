@@ -1,0 +1,2 @@
+export ETH_RPC_URL=https://kovan.infura.io/v3/70e24b2297fb4104a0fef5b9bff3c159
+export ETH_FROM=0x4A9BffAB0b3758D0c03055Ff37d7D1E1B23fb849
