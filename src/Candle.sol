@@ -165,6 +165,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     function finaliseAuction(uint256 auctionId, uint256 randomness) internal {
         Auction storage a = idToAuction[auctionId];
         require(block.number > a.finalBlock, "Auction is not over");
+	require(a.finalBlock != 0, "Auction already finalised");
         uint256 closing = add(
             randomness % sub(a.finalBlock, a.closingBlock),
             1
@@ -239,25 +240,22 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         returns (bool upkeepNeeded, bytes memory performData)
     {
         if (blocksToFinaliseAuctions[block.number].length > 0) {
-            return (true, abi.encode(block.number));
+            return (true, abi.encode(blocksToFinaliseAuctions[block.number]));
         } else {
             return (false, bytes(""));
         }
     }
 
     function performUpkeep(bytes calldata performData ) external override {
-        uint256 blockNum = abi.decode(performData, (uint256));
+        uint256[] memory requestIdsToFinalise = abi.decode(performData, (uint256[]));
         require(
-            LINK.balanceOf(address(this)) >=
-                fee * blocksToFinaliseAuctions[blockNum].length,
+            LINK.balanceOf(address(this)) > fee * requestIdsToFinalise.length,
             "Not enough LINK"
         );
-        for (uint256 i; i < blocksToFinaliseAuctions[blockNum].length; i++) {
-            requestIdToAuction[
-                requestRandomness(keyHash, fee)
-            ] = blocksToFinaliseAuctions[blockNum][i];
+        for (uint256 i; i < requestIdsToFinalise.length; i++) {
+            requestIdToAuction[requestRandomness(keyHash, fee)] = requestIdsToFinalise[i];
         }
-        delete blocksToFinaliseAuctions[blockNum];
+        // delete blocksToFinaliseAuctions[blockNum];
     }
 
     function fulfillRandomness(bytes32 requestId, uint256 randomness)
