@@ -8,13 +8,15 @@ contract TestNFT is ERC721 {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenId;
 
-    constructor() ERC721("TestNFT", "TNFT") {}
+    constructor() ERC721("TestNFT", "TNFT") {
+    }
 
     // returns tokenid
     function mint(address sender) public returns (uint256) {
         _tokenId.increment();
         uint256 newItemId = _tokenId.current();
         _mint(sender, newItemId);
+	//_setTokenURI(newItemId, metadataURI);
         return newItemId;
     }
 }
