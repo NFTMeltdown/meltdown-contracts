@@ -19,13 +19,13 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     uint256 internal fee;
     uint256 public randomResult;
 
-    event AuctionCreated(uint256, uint256, uint256, address);
-    event AuctionFinalised(uint256, address, uint256);
-    event BidIncreased(uint256, uint256, address, uint256, bool);
+    event AuctionCreated(uint256 auctionId, uint256 closingBlock, uint256 finalBlock, address bidToken);
+    event AuctionFinalised(uint256 auctionId, address winner, uint256 amount);
+    event BidIncreased(uint256 auctionId, uint256 aindex, address bidder, uint256 amount, bool newHighestBidder);
 
-    mapping(uint256 => Auction) idToAuction;
-    mapping(bytes32 => uint256) requestIdToAuction;
-    mapping(uint256 => uint256[]) blocksToFinaliseAuctions;
+    mapping(uint256 => Auction) public idToAuction;
+    mapping(bytes32 => uint256) public requestIdToAuction;
+    mapping(uint256 => uint256[]) public blocksToFinaliseAuctions;
 
     constructor()
         VRFConsumerBase(
@@ -49,6 +49,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         address currentHighestBidder;
         mapping(uint256 => address) highestBidderAtIndex;
         mapping(address => uint256) cumululativeBidFromBidder;
+	uint256[] highestChangeAt;
     }
 
     modifier canBe64(uint256 _value) {
@@ -67,12 +68,12 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         uint256 _finalBlock,
         address _bidToken
     ) public returns (uint256) {
-        require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender);
+        require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender, "You are not the owner");
         // auction must last at least 50 blocks (~ 10 minutes)
-        require(_closingBlock > add(block.number, 50));
+        // require(_closingBlock > add(block.number, 50), "Too short");
         // require at least 20 (~240s) closing blocks
         uint256 closingWindow = sub(_finalBlock, _closingBlock);
-        require(closingWindow >= 20);
+        // require(closingWindow >= 20, "Closing window short");
 
         IERC721(_tokenAddress).safeTransferFrom(
             msg.sender,
@@ -111,13 +112,25 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     function cancelAuction(uint256 auctionId) external {
         Auction storage a = idToAuction[auctionId];
         require(msg.sender == a.seller);
+	// Cannot cancel an auction while it is in finalisation phase.
         require(block.number < a.closingBlock);
+	uint i;
+        // Don't need to finalise auction anymore:w
+
+	uint[] storage arr = blocksToFinaliseAuctions[a.finalBlock+1];
+	while (arr[i] != auctionId) {
+		i++;
+	}
+	arr[i] = arr[arr.length - 1];
+        arr.pop();
         a.finalBlock = 0;
         IERC721(a.tokenAddress).safeTransferFrom(
             address(this),
             msg.sender,
             a.tokenId
         );
+	// Finalise the auction
+        emit AuctionFinalised(auctionId, address(0), 0);
     }
 
     function addToBid(uint256 auctionId, uint256 increaseBidBy) external {
@@ -272,6 +285,16 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     {
         finaliseAuction(auctionToFinalise, randomness);
         return randomness;
+    }
+
+    function manualRequestRandomness(uint256 auctionToFinalise)
+        external
+    {
+        require(
+            LINK.balanceOf(address(this)) > fee,
+            "Not enough LINK"
+        );
+	requestIdToAuction[requestRandomness(keyHash, fee)] = auctionToFinalise;
     }
 
     function onERC721Received(

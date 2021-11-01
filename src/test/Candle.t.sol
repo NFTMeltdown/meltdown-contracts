@@ -57,6 +57,7 @@ contract CandleTest is DSTest {
     WETH weth;
     Bidder Alice;
     Bidder Bob;
+    uint256 longAuction;
 
     struct Auction {
         address tokenAddress;
@@ -76,6 +77,13 @@ contract CandleTest is DSTest {
         candle = new Candle();
         nft = new TestNFT();
         weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
+        longAuction = candle.createAuction(
+            address(nft),
+            tokenId,
+            block.number + 100,
+            block.number + 150,
+            address(weth)
+        );
     }
 
     function testFail_basic_sanity() public {
@@ -251,6 +259,32 @@ contract CandleTest is DSTest {
         Alice.increaseAuctionBid(1 ether);
         hevm.roll(block.number + 1);
         Alice.withdrawBid();
+    }
+
+    function test_cancel_auction() public {
+        uint256 tokenId = nft.mint(address(this));
+        assertEq(nft.balanceOf(address(this)), 1);
+        nft.approve(address(candle), tokenId);
+	uint blk = block.number;
+        uint256 aid = candle.createAuction(
+            address(nft),
+            tokenId,
+            blk + 100,
+            blk + 150,
+            address(weth)
+        );
+	// Auction will be finalised by Chainlink
+	assertEq(candle.blocksToFinaliseAuctions(blk+150+1, 0), aid);
+        Alice = new Bidder{value: 10 ether}(candle, aid);
+        hevm.roll(block.number + 1);
+        Alice.increaseAuctionBid(1 ether);
+	// Try and cancel the auction
+	candle.cancelAuction(aid);
+	// Let Alice withdraw her WETH
+	Alice.withdrawBid();
+	assertEq(Alice.balance(), 10 ether);
+	// Chainlink finalisation cancelled.
+	//assertEq(candle.blocksToFinaliseAuctions(blk+150+1, 0), 0);
     }
 
     // Testing 2 bid NFT withdraw
