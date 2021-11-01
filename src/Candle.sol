@@ -22,6 +22,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     event AuctionCreated(uint256 auctionId, uint256 closingBlock, uint256 finalBlock, address bidToken);
     event AuctionFinalised(uint256 auctionId, address winner, uint256 amount);
     event BidIncreased(uint256 auctionId, uint256 aindex, address bidder, uint256 amount, bool newHighestBidder);
+    event HighestBidderChangedAt(uint[] hbca);
 
     mapping(uint256 => Auction) public idToAuction;
     mapping(bytes32 => uint256) public requestIdToAuction;
@@ -47,9 +48,9 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         uint256 finalBlock;
         address bidToken;
         address currentHighestBidder;
+	uint256[] highestBidderChangedAt;
         mapping(uint256 => address) highestBidderAtIndex;
         mapping(address => uint256) cumululativeBidFromBidder;
-	uint256[] highestChangeAt;
     }
 
     modifier canBe64(uint256 _value) {
@@ -114,9 +115,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         require(msg.sender == a.seller);
 	// Cannot cancel an auction while it is in finalisation phase.
         require(block.number < a.closingBlock);
+        // Don't need to finalise auction anymore
 	uint i;
-        // Don't need to finalise auction anymore:w
-
 	uint[] storage arr = blocksToFinaliseAuctions[a.finalBlock+1];
 	while (arr[i] != auctionId) {
 		i++;
@@ -124,11 +124,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 	arr[i] = arr[arr.length - 1];
         arr.pop();
         a.finalBlock = 0;
-        IERC721(a.tokenAddress).safeTransferFrom(
-            address(this),
-            msg.sender,
-            a.tokenId
-        );
+	a.currentHighestBidder = address(0);
 	// Finalise the auction
         emit AuctionFinalised(auctionId, address(0), 0);
     }
@@ -162,6 +158,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
             ) {
                 a.highestBidderAtIndex[aindex] = msg.sender;
                 a.currentHighestBidder = msg.sender;
+		a.highestBidderChangedAt.push(aindex);
+		emit HighestBidderChangedAt(a.highestBidderChangedAt);
                 emit BidIncreased(
                     auctionId,
                     aindex,
@@ -179,28 +177,25 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         Auction storage a = idToAuction[auctionId];
         require(block.number > a.finalBlock, "Auction is not over");
 	require(a.finalBlock != 0, "Auction already finalised");
-        uint256 closing = add(
+        uint256 closing_index = add(
             randomness % sub(a.finalBlock, a.closingBlock),
             1
         );
         a.finalBlock = 0;
-        // work backwards from the closing block until we reach a highest bidder
-        for (uint256 b = closing + 1; b > 0; b--) {
-            if (a.highestBidderAtIndex[b - 1] != address(0)) {
-                a.currentHighestBidder = a.highestBidderAtIndex[b - 1];
-                uint256 winningBidAmount = a.cumululativeBidFromBidder[
-                    a.currentHighestBidder
-                ];
-                emit AuctionFinalised(
-                    auctionId,
-                    a.currentHighestBidder,
-                    winningBidAmount
-                );
-                return;
-            }
-        }
+        // work backwards from the last highestBidderChangedAt until it is below the lastBlock
+	for (uint b = a.highestBidderChangedAt.length; b > 0; b--) {
+		if (a.highestBidderChangedAt[b-1] <= closing_index) {
+			a.currentHighestBidder = a.highestBidderAtIndex[a.highestBidderChangedAt[b-1]];
+			uint256 winningBidAmount = a.cumululativeBidFromBidder[a.currentHighestBidder];
+			emit AuctionFinalised(
+			    auctionId,
+			    a.currentHighestBidder,
+			    winningBidAmount
+			);
+			return;
+		}
+	}
         // there were no bids at all.
-        // transfer NFT back to sender.
         emit AuctionFinalised(auctionId, address(0), 0);
     }
 
@@ -208,7 +203,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         Auction storage a = idToAuction[auctionId];
         require(a.finalBlock == 0, "Auction not finalised");
         if (msg.sender != a.seller) {
-            // sender won the auction, transfer them the NFT
+            // if sender won the auction, transfer them the NFT
             // otherwise sender lost, transfer them their money back.
             if (msg.sender == a.currentHighestBidder) {
                 IERC721(a.tokenAddress).safeTransferFrom(
