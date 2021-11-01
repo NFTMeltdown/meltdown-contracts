@@ -77,13 +77,6 @@ contract CandleTest is DSTest {
         candle = new Candle();
         nft = new TestNFT();
         weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
-        longAuction = candle.createAuction(
-            address(nft),
-            tokenId,
-            block.number + 100,
-            block.number + 150,
-            address(weth)
-        );
     }
 
     function testFail_basic_sanity() public {
