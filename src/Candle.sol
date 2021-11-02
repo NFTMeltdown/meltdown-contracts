@@ -12,12 +12,12 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 /// @author calebcheng00 and VasilyGerrans
 contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Receiver {
     using Counters for Counters.Counter;
-
     Counters.Counter private auctionIdCounter;
 
     bytes32 internal keyHash;
     uint256 internal fee;
     uint256 public randomResult;
+    address owner;
 
     event AuctionCreated(uint256 auctionId, uint256 closingBlock, uint256 finalBlock, address bidToken);
     event AuctionFinalised(uint256 auctionId, address winner, uint256 amount);
@@ -35,6 +35,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     {
             keyHash = 0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4;
             fee = 0.1 * 10**18; // 0.1 LINK (Varies by network)
+	    owner = msg.sender;
     }
 
     struct Auction {
@@ -239,19 +240,22 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         }
     }
 
-    function checkUpkeep(bytes calldata /* checkData */)
+    function checkUpkeep(bytes calldata checkData)
         external override
         returns (bool upkeepNeeded, bytes memory performData)
     {
-        if (blocksToFinaliseAuctions[block.number].length > 0) {
-            return (true, abi.encode(blocksToFinaliseAuctions[block.number]));
-        } else {
-            return (false, bytes(""));
-        }
+	// check whether an auction needs finalising in the last 50 blocks
+	for (uint i; i < 50; i++) {
+		if (blocksToFinaliseAuctions[block.number-i].length > 0) {
+		    return (true, abi.encode(block.number-i, blocksToFinaliseAuctions[block.number-i]));
+		}
+	}
+	return (false, bytes(""));
+
     }
 
-    function performUpkeep(bytes calldata performData ) external override {
-        uint256[] memory requestIdsToFinalise = abi.decode(performData, (uint256[]));
+    function performUpkeep(bytes calldata performData) external override {
+        (uint256 blockNum, uint256[] memory requestIdsToFinalise) = abi.decode(performData, (uint, uint256[]));
         require(
             LINK.balanceOf(address(this)) > fee * requestIdsToFinalise.length,
             "Not enough LINK"
@@ -259,21 +263,21 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         for (uint256 i; i < requestIdsToFinalise.length; i++) {
             requestIdToAuction[requestRandomness(keyHash, fee)] = requestIdsToFinalise[i];
         }
-        // delete blocksToFinaliseAuctions[blockNum];
+        delete blocksToFinaliseAuctions[blockNum];
     }
 
     function fulfillRandomness(bytes32 requestId, uint256 randomness)
         internal
         override
     {
-        uint256 auctionToFinalise = requestIdToAuction[requestId];
-        finaliseAuction(auctionToFinalise, randomness);
+        finaliseAuction(requestIdToAuction[requestId], randomness);
     }
 
     function manualFulfil(uint256 auctionToFinalise, uint256 randomness)
         external
         returns (uint256)
     {
+	require(msg.sender == owner, "Only owner can manualFulfil");
         finaliseAuction(auctionToFinalise, randomness);
         return randomness;
     }
@@ -281,6 +285,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     function manualRequestRandomness(uint256 auctionToFinalise)
         external
     {
+	require(msg.sender == owner, "Only owner can manualRequestRandomness");
         require(
             LINK.balanceOf(address(this)) > fee,
             "Not enough LINK"
@@ -293,7 +298,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         address,
         uint256,
         bytes memory
-    ) public virtual override returns (bytes4) {
+    ) public pure virtual override returns (bytes4) {
         return this.onERC721Received.selector;
     }
 }
