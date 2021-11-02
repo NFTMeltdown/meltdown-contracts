@@ -245,7 +245,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         returns (bool upkeepNeeded, bytes memory performData)
     {
 	// check whether an auction needs finalising in the last 50 blocks
-	for (uint i; i < 50; i++) {
+	for (uint i; i < 100; i++) {
 		if (blocksToFinaliseAuctions[block.number-i].length > 0) {
 		    return (true, abi.encode(block.number-i, blocksToFinaliseAuctions[block.number-i]));
 		}
