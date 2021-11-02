@@ -10,6 +10,6 @@ seth send --password password.txt $NFT_CONTRACT $APPROVE $1 $2
 BLK=$(seth block-number)
 CLOSING_BLOCK=10
 FINAL_BLOCK=20
-echo $(($BLK + $CLOSING_BLOCK))
+echo "Final block will be on $(($BLK + $FINAL_BLOCK))"
 echo "Creating auction of length closing: $CLOSING_BLOCK final: $FINAL_BLOCK"
 seth send --password password.txt $1 $CREATE_AUCTION $NFT_CONTRACT $2 $(($BLK + $CLOSING_BLOCK)) $(($BLK + $FINAL_BLOCK)) $WETH
