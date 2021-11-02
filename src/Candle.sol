@@ -22,7 +22,6 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     event AuctionCreated(uint256 auctionId, uint256 closingBlock, uint256 finalBlock, address bidToken);
     event AuctionFinalised(uint256 auctionId, address winner, uint256 amount);
     event BidIncreased(uint256 auctionId, uint256 aindex, address bidder, uint256 amount, bool newHighestBidder);
-    event HighestBidderChangedAt(uint[] hbca);
 
     mapping(uint256 => Auction) public idToAuction;
     mapping(bytes32 => uint256) public requestIdToAuction;
@@ -34,10 +33,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
             0xa36085F69e2889c224210F603D836748e7dC0088  // LINK Token Address
         )
     {
-        {
             keyHash = 0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4;
             fee = 0.1 * 10**18; // 0.1 LINK (Varies by network)
-        }
     }
 
     struct Auction {
@@ -159,7 +156,6 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
                 a.highestBidderAtIndex[aindex] = msg.sender;
                 a.currentHighestBidder = msg.sender;
 		a.highestBidderChangedAt.push(aindex);
-		emit HighestBidderChangedAt(a.highestBidderChangedAt);
                 emit BidIncreased(
                     auctionId,
                     aindex,
