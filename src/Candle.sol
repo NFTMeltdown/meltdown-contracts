@@ -127,6 +127,11 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         emit AuctionFinalised(auctionId, address(0), 0);
     }
 
+    function currentCumulativeBid(uint256 auctionId, address bidder) external view returns (uint256) {
+	    Auction storage a = idToAuction[auctionId];
+	    return a.cumululativeBidFromBidder[bidder];
+    }
+
     function addToBid(uint256 auctionId, uint256 increaseBidBy) external {
         Auction storage a = idToAuction[auctionId];
         require(block.number <= a.finalBlock, "Auction is over");
@@ -137,17 +142,17 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
             aindex = block.number - a.closingBlock + 1;
         }
         uint256 balance = IERC20(a.bidToken).balanceOf(address(this));
+
         IERC20(a.bidToken).transferFrom(
             msg.sender,
             address(this),
             increaseBidBy
         );
-        uint256 received = sub(
+
+        a.cumululativeBidFromBidder[msg.sender] += sub(
             IERC20(a.bidToken).balanceOf(address(this)),
             balance
         );
-
-        a.cumululativeBidFromBidder[msg.sender] += received;
 
         if (msg.sender != a.currentHighestBidder) {
             if (
