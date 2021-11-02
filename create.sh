@@ -6,10 +6,10 @@ WETH=0xd0A1E359811322d97991E03f863a0C30C2cF029C
 APPROVE="approve(address,uint256)"
 CREATE_AUCTION="createAuction(address,uint256,uint256,uint256,address)(uint256)"
 echo "Approving $1 to spend NFT"
-seth send --password password.txt $NFT_CONTRACT $APPROVE $1 $2
+seth send --password password.txt --from $ME $NFT_CONTRACT $APPROVE $1 $2
 BLK=$(seth block-number)
-CLOSING_BLOCK=10
-FINAL_BLOCK=20
+CLOSING_BLOCK=30
+FINAL_BLOCK=50
 echo "Final block will be on $(($BLK + $FINAL_BLOCK))"
 echo "Creating auction of length closing: $CLOSING_BLOCK final: $FINAL_BLOCK"
-seth send --password password.txt $1 $CREATE_AUCTION $NFT_CONTRACT $2 $(($BLK + $CLOSING_BLOCK)) $(($BLK + $FINAL_BLOCK)) $WETH
+seth send --password password.txt --from $ME $1 $CREATE_AUCTION $NFT_CONTRACT $2 $(($BLK + $CLOSING_BLOCK)) $(($BLK + $FINAL_BLOCK)) $WETH
