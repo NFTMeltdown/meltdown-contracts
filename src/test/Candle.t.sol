@@ -473,6 +473,25 @@ contract CandleTest is DSTest {
         assertEq(Bob.balance(), 8 ether);
     }
 
+    function test_checkUpkeep() public {
+        uint256 tokenId = nft.mint(address(this));
+        nft.approve(address(candle), tokenId);
+        uint256 startBlock = block.number;
+        uint256 aid = candle.createAuction(
+            address(nft),
+            tokenId,
+            startBlock + 100,
+            startBlock + 150,
+            address(weth)
+        );
+        hevm.roll(startBlock + 160);
+	(bool upkeepNeeded, bytes memory performData) = candle.checkUpkeep(bytes(""));
+        (uint256 blockNum, uint256[] memory requestIdsToFinalise) = abi.decode(performData, (uint, uint256[]));
+	assertTrue(upkeepNeeded);
+	assertEq(requestIdsToFinalise[0], aid);
+	assertEq(blockNum, startBlock+151);
+    }
+
     function onERC721Received(
         address,
         address,
