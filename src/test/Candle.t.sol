@@ -97,8 +97,8 @@ contract CandleTest is DSTest {
         candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
     }
@@ -109,8 +109,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -144,8 +144,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -162,11 +162,11 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
-        hevm.roll(block.number + 105);
+        hevm.roll(block.number + 150);
         candle.manualFulfil(aid, uint256(blockhash(block.number - 1)));
     }
 
@@ -176,8 +176,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -197,8 +197,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         assertEq(nft.balanceOf(address(this)), 0);
@@ -218,8 +218,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         assertEq(nft.balanceOf(address(this)), 0);
@@ -243,8 +243,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         assertEq(nft.balanceOf(address(this)), 0);
@@ -262,8 +262,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            blk + 100,
-            blk + 150,
+            150,
+            50,
             address(weth)
         );
 	// Auction will be finalised by Chainlink
@@ -291,8 +291,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         assertEq(nft.balanceOf(address(this)), 0);
@@ -328,8 +328,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -363,8 +363,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            block.number + 100,
-            block.number + 150,
+            150,
+            50,
             address(weth)
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -403,8 +403,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            startBlock + 100,
-            startBlock + 150,
+            150,
+            50,
             address(weth)
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -443,8 +443,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            startBlock + 100,
-            startBlock + 150,
+            150,
+            50,
             address(weth)
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -480,8 +480,8 @@ contract CandleTest is DSTest {
         uint256 aid = candle.createAuction(
             address(nft),
             tokenId,
-            startBlock + 100,
-            startBlock + 150,
+            150,
+            50,
             address(weth)
         );
         hevm.roll(startBlock + 160);
