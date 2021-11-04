@@ -254,7 +254,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 	    Auction storage a = idToAuction[auctionId];
 	    return a.highestBidderAtIndex[index];
     }
-    function getCumulativeBidFrombidder(uint auctionId, uint bidder) public view returns (uint) {
+    function getCumulativeBidFrombidder(uint auctionId, address bidder) public view returns (uint) {
 	    Auction storage a = idToAuction[auctionId];
 	    return a.cumululativeBidFromBidder[bidder];
     }
