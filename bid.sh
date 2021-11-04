@@ -7,6 +7,7 @@ MAXINT=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 APPROVE="approve(address,uint256)"
 ADDTOBID="addToBid(uint256,uint256)"
 echo "You have $(seth call $WETH "balanceOf(address)(uint256)" $ME) WETH"
+:q
 echo "Approving $1 to spend unlimited WETH"
 seth send --password password.txt --from $ME $WETH $APPROVE $1 $MAXINT
 echo "Bidding $3 on auction $2"

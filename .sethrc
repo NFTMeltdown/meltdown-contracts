@@ -3,3 +3,4 @@ export ETH_FROM="0x4A9BffAB0b3758D0c03055Ff37d7D1E1B23fb849"
 export ETH_GAS=5000000
 export ETHERSCAN_API_KEY=RD8VP3XM1F1T7Y8Y2SN4ZCZST4ERT32KME
 export SETH_ABI=$(seth abi "event AuctionCreated(uint aid,uint closing,uint final,address bidtoken)")
+export ETH_PASSWORD=password.txt
