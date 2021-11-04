@@ -8,8 +8,8 @@ CREATE_AUCTION="createAuction(address,uint256,uint256,uint256,address)(uint256)"
 echo "Approving $1 to spend NFT"
 seth send --password password.txt --from $ME $NFT_CONTRACT $APPROVE $1 $2
 BLK=$(seth block-number)
-CLOSING_BLOCK=30
-FINAL_BLOCK=50
-echo "Final block will be on $(($BLK + $FINAL_BLOCK))"
-echo "Creating auction of length closing: $CLOSING_BLOCK final: $FINAL_BLOCK"
-seth send --password password.txt --from $ME $1 $CREATE_AUCTION $NFT_CONTRACT $2 $(($BLK + $CLOSING_BLOCK)) $(($BLK + $FINAL_BLOCK)) $WETH
+AUCTION_LENGTH=50
+CLOSING_LENGTH=20
+echo $(($BLK + $AUCTION_LENGTH))
+echo "Creating auction of length $AUCTION_LENGTH closing window length: $CLOSING_LENGTH"
+seth send --password password.txt --from $ME $1 $CREATE_AUCTION $NFT_CONTRACT $2 $AUCTION_LENGTH $CLOSING_LENGTH $WETH
