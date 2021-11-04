@@ -244,10 +244,19 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         }
     }
 
-    // Convenience method to get everything about an auction
+    // Convenience getter methods to get everything about an auction
     function getAuction(uint auctionId) public view returns (address,uint,address,uint,uint,address,address,uint[] memory) {
 	    Auction storage a = idToAuction[auctionId];
 	    return (a.tokenAddress, a.tokenId, a.seller, a.closingBlock, a.finalBlock, a.bidToken, a.currentHighestBidder, a.highestBidderChangedAt);
+    }
+
+    function getAuctionHighestBidderAtIndex(uint auctionId, uint index) public view returns (address) {
+	    Auction storage a = idToAuction[auctionId];
+	    return a.highestBidderAtIndex[index];
+    }
+    function getCumulativeBidFrombidder(uint auctionId, uint bidder) public view returns (uint) {
+	    Auction storage a = idToAuction[auctionId];
+	    return a.cumululativeBidFromBidder[bidder];
     }
 
     function checkUpkeep(bytes calldata checkData)
