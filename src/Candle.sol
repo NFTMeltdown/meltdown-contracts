@@ -63,16 +63,17 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     function createAuction(
         address _tokenAddress,
         uint256 _tokenId,
-        uint256 _closingBlock,
-        uint256 _finalBlock,
+        uint256 _auctionLengthBlocks,
+        uint256 _closingLengthBlocks,
         address _bidToken
     ) public returns (uint256) {
         require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender, "You are not the owner");
         // auction must last at least 50 blocks (~ 10 minutes)
         // require(_closingBlock > add(block.number, 50), "Too short");
         // require at least 20 (~240s) closing blocks
-        uint256 closingWindow = sub(_finalBlock, _closingBlock);
+        // uint256 closingWindow = sub(_finalBlock, _closingBlock);
         // require(closingWindow >= 20, "Closing window short");
+	require(_auctionLengthBlocks > _closingLengthBlocks, "Invalid length");
 
         IERC721(_tokenAddress).safeTransferFrom(
             msg.sender,
@@ -86,8 +87,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         a.tokenAddress = _tokenAddress;
         a.tokenId = _tokenId;
         a.seller = msg.sender;
-        a.closingBlock = _closingBlock;
-        a.finalBlock = _finalBlock;
+        a.closingBlock = sub(add(block.number, _auctionLengthBlocks), _closingLengthBlocks);
+        a.finalBlock = add(block.number, _auctionLengthBlocks);
         a.bidToken = _bidToken;
 
 	// Plan to finalise the block straight afte rthe auction finishes
@@ -154,23 +155,18 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
             balance
         );
 
-        if (msg.sender != a.currentHighestBidder) {
-            if (
-                a.cumululativeBidFromBidder[msg.sender] >
-                a.cumululativeBidFromBidder[a.currentHighestBidder]
-            ) {
-                a.highestBidderAtIndex[aindex] = msg.sender;
-                a.currentHighestBidder = msg.sender;
+        if (msg.sender != a.currentHighestBidder && (a.cumululativeBidFromBidder[msg.sender] > a.cumululativeBidFromBidder[a.currentHighestBidder])) {
+		a.highestBidderAtIndex[aindex] = msg.sender;
+		a.currentHighestBidder = msg.sender;
 		a.highestBidderChangedAt.push(aindex);
-                emit BidIncreased(
-                    auctionId,
-                    aindex,
-                    msg.sender,
-                    increaseBidBy,
-                    true
-                );
-                return;
-            }
+		emit BidIncreased(
+		    auctionId,
+		    aindex,
+		    msg.sender,
+		    increaseBidBy,
+		    true
+		);
+		return;
         }
         emit BidIncreased(auctionId, aindex, msg.sender, increaseBidBy, false);
     }
