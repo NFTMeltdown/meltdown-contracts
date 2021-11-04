@@ -51,6 +51,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         mapping(address => uint256) cumululativeBidFromBidder;
     }
 
+
     modifier canBe64(uint256 _value) {
         require(_value < 18446744073709551615);
         _;
@@ -74,6 +75,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         // uint256 closingWindow = sub(_finalBlock, _closingBlock);
         // require(closingWindow >= 20, "Closing window short");
 	require(_auctionLengthBlocks > _closingLengthBlocks, "Invalid length");
+	uint _closingBlock = sub(add(block.number, _auctionLengthBlocks), _closingLengthBlocks);
+	uint _finalBlock = add(block.number, _auctionLengthBlocks);
 
         IERC721(_tokenAddress).safeTransferFrom(
             msg.sender,
@@ -87,8 +90,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         a.tokenAddress = _tokenAddress;
         a.tokenId = _tokenId;
         a.seller = msg.sender;
-        a.closingBlock = sub(add(block.number, _auctionLengthBlocks), _closingLengthBlocks);
-        a.finalBlock = add(block.number, _auctionLengthBlocks);
+        a.closingBlock = _closingBlock;
+        a.finalBlock = _finalBlock;
         a.bidToken = _bidToken;
 
 	// Plan to finalise the block straight afte rthe auction finishes
@@ -239,6 +242,12 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
                 );
             }
         }
+    }
+
+    // Convenience method to get everything about an auction
+    function getAuction(uint auctionId) public view returns (address,uint,address,uint,uint,address,address,uint[] memory) {
+	    Auction storage a = idToAuction[auctionId];
+	    return (a.tokenAddress, a.tokenId, a.seller, a.closingBlock, a.finalBlock, a.bidToken, a.currentHighestBidder, a.highestBidderChangedAt);
     }
 
     function checkUpkeep(bytes calldata checkData)
