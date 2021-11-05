@@ -78,11 +78,11 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 	uint _closingBlock = sub(add(block.number, _auctionLengthBlocks), _closingLengthBlocks);
 	uint _finalBlock = add(block.number, _auctionLengthBlocks);
 
-        IERC721(_tokenAddress).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _tokenId
-        );
+        //IERC721(_tokenAddress).safeTransferFrom(
+            //msg.sender,
+            //address(this),
+            //_tokenId
+        //);
 
         uint256 auctionId = auctionIdCounter.current();
         auctionIdCounter.increment();
@@ -209,7 +209,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
             // otherwise sender lost, transfer them their money back.
             if (msg.sender == a.currentHighestBidder) {
                 IERC721(a.tokenAddress).safeTransferFrom(
-                    address(this),
+                    a.seller,
                     msg.sender,
                     a.tokenId
                 );
@@ -224,9 +224,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
                 );
             }
         } else {
-            // if there were no bids, return nft
-            // otherwise return proceeds.
-            if (a.currentHighestBidder == address(0)) {
+            // return proceeds 
+            if (a.currentHighestBidder != address(0)) {
                 IERC721(a.tokenAddress).safeTransferFrom(
                     address(this),
                     msg.sender,
