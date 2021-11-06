@@ -217,6 +217,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
                 uint256 senderLosingBidAmount = a.cumululativeBidFromBidder[
                     msg.sender
                 ];
+                a.cumululativeBidFromBidder[msg.sender] = 0;
                 IERC20(a.bidToken).transferFrom(
                     address(this),
                     msg.sender,
@@ -236,6 +237,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
                 uint256 winningBidAmount = a.cumululativeBidFromBidder[
                     a.currentHighestBidder
                 ];
+                a.cumululativeBidFromBidder[a.currentHighestBidder] = 0;
                 IERC20(a.bidToken).transferFrom(
                     address(this),
                     msg.sender,
@@ -255,7 +257,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 	    Auction storage a = idToAuction[auctionId];
 	    return a.highestBidderAtIndex[index];
     }
-    function getCumulativeBidFrombidder(uint auctionId, address bidder) public view returns (uint) {
+    function getCumulativeBidFromBidder(uint auctionId, address bidder) public view returns (uint) {
 	    Auction storage a = idToAuction[auctionId];
 	    return a.cumululativeBidFromBidder[bidder];
     }
@@ -271,7 +273,6 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 		}
 	}
 	return (false, bytes(""));
-
     }
 
     function performUpkeep(bytes calldata performData) external override {
