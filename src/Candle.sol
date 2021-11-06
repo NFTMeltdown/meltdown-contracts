@@ -19,7 +19,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     uint256 public randomResult;
     address owner;
 
-    event AuctionCreated(uint256 auctionId, uint256 closingBlock, uint256 finalBlock, address bidToken);
+    event AuctionCreated(uint256 auctionId, uint256 closingBlock, uint256 finalBlock);
     event AuctionFinalised(uint256 auctionId, address winner, uint256 amount);
     event BidIncreased(uint256 auctionId, uint256 aindex, address bidder, uint256 amount, bool newHighestBidder);
 
@@ -44,7 +44,6 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         address seller;
         uint256 closingBlock;
         uint256 finalBlock;
-        address bidToken;
         address currentHighestBidder;
 	uint256[] highestBidderChangedAt;
         mapping(uint256 => address) highestBidderAtIndex;
@@ -65,8 +64,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         address _tokenAddress,
         uint256 _tokenId,
         uint256 _auctionLengthBlocks,
-        uint256 _closingLengthBlocks,
-        address _bidToken
+        uint256 _closingLengthBlocks
     ) public returns (uint256) {
         require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender, "You are not the owner");
         // auction must last at least 50 blocks (~ 10 minutes)
@@ -92,11 +90,10 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         a.seller = msg.sender;
         a.closingBlock = _closingBlock;
         a.finalBlock = _finalBlock;
-        a.bidToken = _bidToken;
 
 	// Plan to finalise the block straight afte rthe auction finishes
         blocksToFinaliseAuctions[add(_finalBlock, 1)].push(auctionId);
-        emit AuctionCreated(auctionId, _closingBlock, _finalBlock, _bidToken);
+        emit AuctionCreated(auctionId, _closingBlock, _finalBlock);
         return auctionId;
     }
 
@@ -136,7 +133,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 	    return a.cumululativeBidFromBidder[bidder];
     }
 
-    function addToBid(uint256 auctionId, uint256 increaseBidBy) external {
+    function addToBid(uint256 auctionId) external payable {
         Auction storage a = idToAuction[auctionId];
         require(block.number <= a.finalBlock, "Auction is over");
 	require(msg.sender != a.seller, "You are the seller");
@@ -146,18 +143,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         if (block.number >= a.closingBlock) {
             aindex = block.number - a.closingBlock + 1;
         }
-        uint256 balance = IERC20(a.bidToken).balanceOf(address(this));
 
-        IERC20(a.bidToken).transferFrom(
-            msg.sender,
-            address(this),
-            increaseBidBy
-        );
-
-        a.cumululativeBidFromBidder[msg.sender] += sub(
-            IERC20(a.bidToken).balanceOf(address(this)),
-            balance
-        );
+        a.cumululativeBidFromBidder[msg.sender] += msg.value;
 
         if (msg.sender != a.currentHighestBidder && (a.cumululativeBidFromBidder[msg.sender] > a.cumululativeBidFromBidder[a.currentHighestBidder])) {
 		a.highestBidderAtIndex[aindex] = msg.sender;
@@ -167,12 +154,12 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 		    auctionId,
 		    aindex,
 		    msg.sender,
-		    increaseBidBy,
+		    msg.value,
 		    true
 		);
 		return;
         }
-        emit BidIncreased(auctionId, aindex, msg.sender, increaseBidBy, false);
+        emit BidIncreased(auctionId, aindex, msg.sender, msg.value, false);
     }
 
     function finaliseAuction(uint256 auctionId, uint256 randomness) internal {
@@ -218,11 +205,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
                     msg.sender
                 ];
                 a.cumululativeBidFromBidder[msg.sender] = 0;
-                IERC20(a.bidToken).transferFrom(
-                    address(this),
-                    msg.sender,
-                    senderLosingBidAmount
-                );
+		(bool success, ) = msg.sender.call{value:senderLosingBidAmount}("");
+		require(success, "Transfer failed.");
             }
         } else {
             // if there were no bids, return nft
@@ -238,19 +222,16 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
                     a.currentHighestBidder
                 ];
                 a.cumululativeBidFromBidder[a.currentHighestBidder] = 0;
-                IERC20(a.bidToken).transferFrom(
-                    address(this),
-                    msg.sender,
-                    winningBidAmount
-                );
+		(bool success, ) = msg.sender.call{value:winningBidAmount}("");
+		require(success, "Transfer failed.");
             }
         }
     }
 
     // Convenience getter methods to get everything about an auction
-    function getAuction(uint auctionId) public view returns (address,uint,address,uint,uint,address,address,uint[] memory) {
+    function getAuction(uint auctionId) public view returns (address,uint,address,uint,uint,address,uint[] memory) {
 	    Auction storage a = idToAuction[auctionId];
-	    return (a.tokenAddress, a.tokenId, a.seller, a.closingBlock, a.finalBlock, a.bidToken, a.currentHighestBidder, a.highestBidderChangedAt);
+	    return (a.tokenAddress, a.tokenId, a.seller, a.closingBlock, a.finalBlock, a.currentHighestBidder, a.highestBidderChangedAt);
     }
 
     function getAuctionHighestBidderAtIndex(uint auctionId, uint index) public view returns (address) {
@@ -266,7 +247,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         external override
         returns (bool upkeepNeeded, bytes memory performData)
     {
-	// check whether an auction needs finalising in the last 50 blocks
+	// check whether an auction needs finalising in the last 100 blocks
 	for (uint i; i < 100; i++) {
 		if (blocksToFinaliseAuctions[block.number-i].length > 0) {
 		    return (true, abi.encode(block.number-i, blocksToFinaliseAuctions[block.number-i]));
