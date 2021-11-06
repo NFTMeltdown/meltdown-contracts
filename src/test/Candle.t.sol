@@ -10,7 +10,7 @@ contract Bidder {
     Candle candle;
     uint256 auctionId;
 
-    function deposit() public payable {}
+    receive() external payable{}
 
     constructor(Candle _candle, uint256 _auctionId) payable {
         auctionId = _auctionId;
@@ -60,6 +60,7 @@ contract CandleTest is DSTest {
     }
 
     event Print(string msg, uint256 value);
+    receive() external payable {}
 
     function setUp() public {
         candle = new Candle();
@@ -209,9 +210,11 @@ contract CandleTest is DSTest {
         assertEq(Alice.balance(), 9 ether);
         hevm.roll(block.number + 152);
         candle.manualFulfil(aid, uint256(blockhash(block.number - 1)));
+
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(address(this).balance, 1 ether);
+        assertEq(address(this).balance - preBalance, 1 ether);
         Alice.withdrawBid();
         assertEq(nft.balanceOf(address(Alice)), 1);
     }
@@ -284,9 +287,11 @@ contract CandleTest is DSTest {
         assertEq(Bob.balance(), 8 ether);
         hevm.roll(block.number + 152);
         candle.manualFulfil(aid, uint256(blockhash(block.number - 1)));
+
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(address(this).balance, 2 ether);
+        assertEq(address(this).balance - preBalance, 2 ether);
         Alice.withdrawBid();
         assertEq(Alice.balance(), 10 ether);
         assertEq(nft.balanceOf(address(Alice)), 0);
@@ -356,9 +361,10 @@ contract CandleTest is DSTest {
         assertEq(highest, address(Bob));
         assertEq(amount, 2 ether);
 
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(address(this).balance, 2 ether);
+        assertEq(address(this).balance - preBalance, 2 ether);
 
         Alice.withdrawBid();
         assertEq(nft.balanceOf(address(Alice)), 0);
@@ -395,9 +401,10 @@ contract CandleTest is DSTest {
         assertEq(highest, address(Alice));
         assertEq(amount, 1 ether);
 
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(address(this).balance, 1 ether);
+        assertEq(address(this).balance - preBalance, 1 ether);
 
         Alice.withdrawBid();
         assertEq(nft.balanceOf(address(Alice)), 1);
@@ -434,9 +441,10 @@ contract CandleTest is DSTest {
         assertEq(highest, address(Bob));
         assertEq(amount, 2 ether);
 
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(address(this).balance, 2 ether);
+        assertEq(address(this).balance - preBalance, 2 ether);
 
         Alice.withdrawBid();
         assertEq(nft.balanceOf(address(Alice)), 0);
