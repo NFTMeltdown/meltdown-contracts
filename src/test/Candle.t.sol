@@ -86,7 +86,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
     }
 
@@ -97,7 +98,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -131,7 +133,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -148,7 +151,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         hevm.roll(block.number + 150);
         candle.manualFulfil(aid, uint256(blockhash(block.number - 1)));
@@ -161,7 +165,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -181,7 +186,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         assertEq(nft.balanceOf(address(this)), 0);
         hevm.roll(block.number + 152);
@@ -201,7 +207,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         assertEq(nft.balanceOf(address(this)), 0);
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -227,7 +234,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         assertEq(nft.balanceOf(address(this)), 0);
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -245,7 +253,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
 	// Auction will be finalised by Chainlink
 	assertEq(candle.blocksToFinaliseAuctions(blk+150+1, 0), aid);
@@ -273,7 +282,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         assertEq(nft.balanceOf(address(this)), 0);
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -311,7 +321,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -345,7 +356,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -385,7 +397,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -425,7 +438,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -462,7 +476,8 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50
+            50,
+	    0
         );
         hevm.roll(startBlock + 160);
 	(bool upkeepNeeded, bytes memory performData) = candle.checkUpkeep(bytes(""));

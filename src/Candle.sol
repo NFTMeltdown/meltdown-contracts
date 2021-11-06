@@ -64,7 +64,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         address _tokenAddress,
         uint256 _tokenId,
         uint256 _auctionLengthBlocks,
-        uint256 _closingLengthBlocks
+        uint256 _closingLengthBlocks,
+	uint256 _minBid
     ) public returns (uint256) {
         require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender, "You are not the owner");
         // auction must last at least 50 blocks (~ 10 minutes)
@@ -90,6 +91,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         a.seller = msg.sender;
         a.closingBlock = _closingBlock;
         a.finalBlock = _finalBlock;
+	a.cumululativeBidFromBidder[address(0)] = _minBid;
 
 	// Plan to finalise the block straight afte rthe auction finishes
         blocksToFinaliseAuctions[add(_finalBlock, 1)].push(auctionId);
