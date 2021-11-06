@@ -6,29 +6,19 @@ import "./Hevm.sol";
 import "../Candle.sol";
 import "../TestNFT.sol";
 
-interface WETH {
-    function balanceOf(address) external returns (uint256);
-
-    function deposit() external payable;
-
-    function approve(address, uint256) external;
-}
-
 contract Bidder {
     Candle candle;
     uint256 auctionId;
-    WETH weth;
+
+    receive() external payable{}
 
     constructor(Candle _candle, uint256 _auctionId) payable {
         auctionId = _auctionId;
         candle = _candle;
-        weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
-        weth.deposit{value: 10 ether}();
-        weth.approve(address(candle), 2**256 - 1);
     }
 
     function increaseAuctionBid(uint256 bidAmount) public {
-        candle.addToBid(auctionId, bidAmount);
+        candle.addToBid{value: bidAmount}(auctionId);
     }
 
     function withdrawBid() public {
@@ -36,7 +26,7 @@ contract Bidder {
     }
 
     function balance() public returns (uint256) {
-        return weth.balanceOf(address(this));
+        return address(this).balance;
     }
 
     function onERC721Received(
@@ -54,7 +44,6 @@ contract CandleTest is DSTest {
 
     Candle candle;
     TestNFT nft;
-    WETH weth;
     Bidder Alice;
     Bidder Bob;
     uint256 longAuction;
@@ -65,18 +54,17 @@ contract CandleTest is DSTest {
         address seller;
         uint256 closingBlock;
         uint256 finalBlock;
-        address bidToken;
         address currentHighestBidder;
         mapping(uint256 => address) highestBidderAtIndex;
         mapping(address => uint256) cumululativeBidFromBidder;
     }
 
     event Print(string msg, uint256 value);
+    receive() external payable {}
 
     function setUp() public {
         candle = new Candle();
         nft = new TestNFT();
-        weth = WETH(0xd0A1E359811322d97991E03f863a0C30C2cF029C);
     }
 
     function testFail_basic_sanity() public {
@@ -98,8 +86,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
     }
 
@@ -110,8 +97,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -145,8 +131,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -163,8 +148,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         hevm.roll(block.number + 150);
         candle.manualFulfil(aid, uint256(blockhash(block.number - 1)));
@@ -177,8 +161,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -198,8 +181,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         assertEq(nft.balanceOf(address(this)), 0);
         hevm.roll(block.number + 152);
@@ -219,8 +201,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         assertEq(nft.balanceOf(address(this)), 0);
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -229,9 +210,11 @@ contract CandleTest is DSTest {
         assertEq(Alice.balance(), 9 ether);
         hevm.roll(block.number + 152);
         candle.manualFulfil(aid, uint256(blockhash(block.number - 1)));
+
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(weth.balanceOf(address(this)), 1 ether);
+        assertEq(address(this).balance - preBalance, 1 ether);
         Alice.withdrawBid();
         assertEq(nft.balanceOf(address(Alice)), 1);
     }
@@ -244,8 +227,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         assertEq(nft.balanceOf(address(this)), 0);
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -263,8 +245,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
 	// Auction will be finalised by Chainlink
 	assertEq(candle.blocksToFinaliseAuctions(blk+150+1, 0), aid);
@@ -273,7 +254,7 @@ contract CandleTest is DSTest {
         Alice.increaseAuctionBid(1 ether);
 	// Try and cancel the auction
 	candle.cancelAuction(aid);
-	// Let Alice withdraw her WETH
+	// Let Alice withdraw her ETH
 	Alice.withdrawBid();
 	assertEq(Alice.balance(), 10 ether);
 	// Chainlink finalisation cancelled.
@@ -292,8 +273,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         assertEq(nft.balanceOf(address(this)), 0);
         Alice = new Bidder{value: 10 ether}(candle, aid);
@@ -307,9 +287,11 @@ contract CandleTest is DSTest {
         assertEq(Bob.balance(), 8 ether);
         hevm.roll(block.number + 152);
         candle.manualFulfil(aid, uint256(blockhash(block.number - 1)));
+
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(weth.balanceOf(address(this)), 2 ether);
+        assertEq(address(this).balance - preBalance, 2 ether);
         Alice.withdrawBid();
         assertEq(Alice.balance(), 10 ether);
         assertEq(nft.balanceOf(address(Alice)), 0);
@@ -329,8 +311,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -364,8 +345,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -381,9 +361,10 @@ contract CandleTest is DSTest {
         assertEq(highest, address(Bob));
         assertEq(amount, 2 ether);
 
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(weth.balanceOf(address(this)), 2 ether);
+        assertEq(address(this).balance - preBalance, 2 ether);
 
         Alice.withdrawBid();
         assertEq(nft.balanceOf(address(Alice)), 0);
@@ -404,8 +385,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -421,9 +401,10 @@ contract CandleTest is DSTest {
         assertEq(highest, address(Alice));
         assertEq(amount, 1 ether);
 
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(weth.balanceOf(address(this)), 1 ether);
+        assertEq(address(this).balance - preBalance, 1 ether);
 
         Alice.withdrawBid();
         assertEq(nft.balanceOf(address(Alice)), 1);
@@ -444,8 +425,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         Alice = new Bidder{value: 10 ether}(candle, aid);
         Bob = new Bidder{value: 10 ether}(candle, aid);
@@ -461,9 +441,10 @@ contract CandleTest is DSTest {
         assertEq(highest, address(Bob));
         assertEq(amount, 2 ether);
 
+	uint preBalance = address(this).balance;
         candle.withdraw(aid);
         assertEq(nft.balanceOf(address(this)), 0);
-        assertEq(weth.balanceOf(address(this)), 2 ether);
+        assertEq(address(this).balance - preBalance, 2 ether);
 
         Alice.withdrawBid();
         assertEq(nft.balanceOf(address(Alice)), 0);
@@ -481,8 +462,7 @@ contract CandleTest is DSTest {
             address(nft),
             tokenId,
             150,
-            50,
-            address(weth)
+            50
         );
         hevm.roll(startBlock + 160);
 	(bool upkeepNeeded, bytes memory performData) = candle.checkUpkeep(bytes(""));
