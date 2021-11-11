@@ -1,15 +1,15 @@
 #!/bin/bash
 
 ME=0x4A9BffAB0b3758D0c03055Ff37d7D1E1B23fb849
-NFT_CONTRACT=0xB2C7C58eD50cDD635cb2CB25336BF529e0B37599
-WETH=0xd0A1E359811322d97991E03f863a0C30C2cF029C
+NFT_CONTRACT=0x81319f7F729C9a9733b036258d523fC58CB3b0cD
 APPROVE="approve(address,uint256)"
-CREATE_AUCTION="createAuction(address,uint256,uint256,uint256,address)(uint256)"
+CREATE_AUCTION="createAuction(address,uint256,uint256,uint256,uint256)(uint256)"
 echo "Approving $1 to spend NFT"
-seth send --password password.txt --from $ME $NFT_CONTRACT $APPROVE $1 $2
+seth send --from $ME $NFT_CONTRACT $APPROVE $1 $2
 BLK=$(seth block-number)
 AUCTION_LENGTH=50
 CLOSING_LENGTH=20
+MIN_BID=0
 echo $(($BLK + $AUCTION_LENGTH))
 echo "Creating auction of length $AUCTION_LENGTH closing window length: $CLOSING_LENGTH"
-seth send --password password.txt --from $ME $1 $CREATE_AUCTION $NFT_CONTRACT $2 $AUCTION_LENGTH $CLOSING_LENGTH $WETH
+seth send --from $ME $1 $CREATE_AUCTION $NFT_CONTRACT $2 $AUCTION_LENGTH $CLOSING_LENGTH $MIN_BID
