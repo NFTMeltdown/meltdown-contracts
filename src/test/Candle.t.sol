@@ -76,11 +76,11 @@ contract CandleTest is DSTest {
     }
 
     function test_create_nft() public {
-        nft.mint(address(this));
+        nft.mint(address(this), "");
     }
 
     function test_create_auction() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         candle.createAuction(
             address(nft),
@@ -92,7 +92,7 @@ contract CandleTest is DSTest {
     }
 
     function test_create_and_bid() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
             address(nft),
@@ -127,7 +127,7 @@ contract CandleTest is DSTest {
     }
 
     function testFail_bid_after_finalised() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
             address(nft),
@@ -145,7 +145,7 @@ contract CandleTest is DSTest {
     }
 
     function testFail_finalise_early() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
             address(nft),
@@ -159,7 +159,7 @@ contract CandleTest is DSTest {
     }
 
     function test_finalise_auction() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
             address(nft),
@@ -179,7 +179,7 @@ contract CandleTest is DSTest {
 
     // Testing NFT correctly returned if there are no bids at all.
     function test_no_bids_withdraw() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         assertEq(nft.balanceOf(address(this)), 1);
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
@@ -200,7 +200,7 @@ contract CandleTest is DSTest {
     // Bidder should be able to withdraw NFT.
     // Seller should be able to withdraw deposited tokens.
     function test_one_bid_withdraw() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         assertEq(nft.balanceOf(address(this)), 1);
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
@@ -227,7 +227,7 @@ contract CandleTest is DSTest {
     }
 
     function testFail_withdraw_early() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         assertEq(nft.balanceOf(address(this)), 1);
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
@@ -244,38 +244,12 @@ contract CandleTest is DSTest {
         Alice.withdrawBid();
     }
 
-    function test_cancel_auction() public {
-        uint256 tokenId = nft.mint(address(this));
-        assertEq(nft.balanceOf(address(this)), 1);
-        nft.approve(address(candle), tokenId);
-	uint blk = block.number;
-        uint256 aid = candle.createAuction(
-            address(nft),
-            tokenId,
-            150,
-            50,
-	    0
-        );
-	// Auction will be finalised by Chainlink
-	assertEq(candle.blocksToFinaliseAuctions(blk+150+1, 0), aid);
-        Alice = new Bidder{value: 10 ether}(candle, aid);
-        hevm.roll(block.number + 1);
-        Alice.increaseAuctionBid(1 ether);
-	// Try and cancel the auction
-	candle.cancelAuction(aid);
-	// Let Alice withdraw her ETH
-	Alice.withdrawBid();
-	assertEq(Alice.balance(), 10 ether);
-	// Chainlink finalisation cancelled.
-	//assertEq(candle.blocksToFinaliseAuctions(blk+150+1, 0), 0);
-    }
-
     // Testing 2 bid NFT withdraw
     // Bob wins the auction and should be able to withdraw a NFT
     // Alice loses the auction and can withdraw her bid
     // NFT Owner withdraws Bobs bid.
     function test_two_bid_withdraw() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         assertEq(nft.balanceOf(address(this)), 1);
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
@@ -315,7 +289,7 @@ contract CandleTest is DSTest {
     // Bob bets on closingBlock + 1
     // Auction finalised on closingBlock
     function test_closing_window() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
             address(nft),
@@ -350,7 +324,7 @@ contract CandleTest is DSTest {
     // Bob bets on finalBlock - 2eth
     // Auction finalised on finalBlock
     function test_final_block() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 aid = candle.createAuction(
             address(nft),
@@ -390,7 +364,7 @@ contract CandleTest is DSTest {
     // Bob bids on closingBlock + 10
     // Auction finalises on closingBlock + 5, Alice wins.
     function test_finalise_halfway() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 startBlock = block.number;
         uint256 aid = candle.createAuction(
@@ -431,7 +405,7 @@ contract CandleTest is DSTest {
     // Bob bids on closingBlock + 10
     // Auction finalises on closingBlock + 11, Bob wins.
     function test_finalise_halfway2() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 startBlock = block.number;
         uint256 aid = candle.createAuction(
@@ -469,7 +443,7 @@ contract CandleTest is DSTest {
     }
 
     function test_checkUpkeep() public {
-        uint256 tokenId = nft.mint(address(this));
+        uint256 tokenId = nft.mint(address(this), "");
         nft.approve(address(candle), tokenId);
         uint256 startBlock = block.number;
         uint256 aid = candle.createAuction(
@@ -486,6 +460,89 @@ contract CandleTest is DSTest {
 	assertEq(requestIdsToFinalise[0], aid);
 	assertEq(blockNum, startBlock+151);
     }
+
+    function testFail_multiple_withdraw() public {
+        uint256 tokenId = nft.mint(address(this), "");
+        nft.approve(address(candle), tokenId);
+        uint256 startBlock = block.number;
+        uint256 aid = candle.createAuction(
+            address(nft),
+            tokenId,
+            150,
+            50,
+	    0
+        );
+
+        Alice = new Bidder{value: 10 ether}(candle, aid);
+        Alice.increaseAuctionBid(1 ether);
+        hevm.roll(startBlock + 160);
+	// Finish the auction
+        candle.manualFulfil(aid, 1);
+        (address highest, uint256 amount) = candle.getHighestBid(aid);
+        assertEq(highest, address(Alice));
+        assertEq(amount, 1 ether);
+
+        Alice.withdrawBid();
+        assertEq(nft.balanceOf(address(Alice)), 1);
+        assertEq(Alice.balance(), 9 ether);
+	// Try and withdraw twice
+        Alice.withdrawBid();
+    }
+
+    function testFail_no_cancel() public {
+        uint256 tokenId = nft.mint(address(this), "");
+        nft.approve(address(candle), tokenId);
+        uint256 aid = candle.createAuction(
+            address(nft),
+            tokenId,
+            150,
+            50,
+	    2 ether
+        );
+        Alice = new Bidder{value: 10 ether}(candle, aid);
+        Alice.increaseAuctionBid(3 ether);
+	// Should fail as highest bid is above minbid
+	candle.cancelAuction(aid);
+    }
+
+    function test_can_cancel() public {
+        uint256 tokenId = nft.mint(address(this), "");
+        nft.approve(address(candle), tokenId);
+        uint256 aid = candle.createAuction(
+            address(nft),
+            tokenId,
+            150,
+            50,
+	    2 ether
+        );
+        Alice = new Bidder{value: 10 ether}(candle, aid);
+        Alice.increaseAuctionBid(1 ether);
+	// Should fail as highest bid is above minbid
+	candle.cancelAuction(aid);
+	Alice.withdrawBid();
+        assertEq(nft.balanceOf(address(Alice)), 0);
+        assertEq(Alice.balance(), 10 ether);
+    }
+
+    function test_not_above_min() public {
+        uint256 tokenId = nft.mint(address(this), "");
+        nft.approve(address(candle), tokenId);
+        uint256 aid = candle.createAuction(
+            address(nft),
+            tokenId,
+            150,
+            50,
+	    2 ether
+        );
+        Alice = new Bidder{value: 10 ether}(candle, aid);
+        Alice.increaseAuctionBid(1 ether);
+	hevm.roll(block.number + 160);
+        candle.manualFulfil(aid, 2);
+	Alice.withdrawBid();
+	assertEq(nft.balanceOf(address(Alice)), 0);
+        assertEq(Alice.balance(), 10 ether);
+    }
+
 
     function onERC721Received(
         address,
