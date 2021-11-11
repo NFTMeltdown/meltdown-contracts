@@ -65,7 +65,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         uint256 _tokenId,
         uint256 _auctionLengthBlocks,
         uint256 _closingLengthBlocks,
-	uint256 _minBid
+        uint256 _minBid
     ) public returns (uint256) {
         require(IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender, "You are not the owner");
         // auction must last at least 50 blocks (~ 10 minutes)
@@ -91,7 +91,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         a.seller = msg.sender;
         a.closingBlock = _closingBlock;
         a.finalBlock = _finalBlock;
-	a.cumululativeBidFromBidder[address(0)] = _minBid;
+	// Set address(0) to have the minimum bid.
+	a.cumululativeBidFromBidder[a.currentHighestBidder] = _minBid;
 
 	// Plan to finalise the block straight afte rthe auction finishes
         blocksToFinaliseAuctions[add(_finalBlock, 1)].push(auctionId);
@@ -115,7 +116,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         Auction storage a = idToAuction[auctionId];
         require(msg.sender == a.seller);
 	// Cannot cancel an auction while it is in finalisation phase.
-        require(block.number < a.closingBlock);
+	require(a.currentHighestBidder == address(0), "Highest bid above min. Can't cancel.");
         // Don't need to finalise auction anymore
 	uint i;
 	uint[] storage arr = blocksToFinaliseAuctions[a.finalBlock+1];
@@ -125,7 +126,6 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 	arr[i] = arr[arr.length - 1];
         arr.pop();
         a.finalBlock = 0;
-	a.currentHighestBidder = address(0);
 	// Finalise the auction
         emit AuctionFinalised(auctionId, address(0), 0);
     }
@@ -245,7 +245,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 	    return a.cumululativeBidFromBidder[bidder];
     }
 
-    function checkUpkeep(bytes calldata checkData)
+    function checkUpkeep(bytes calldata /*checkData*/)
         external override
         returns (bool upkeepNeeded, bytes memory performData)
     {
