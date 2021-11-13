@@ -15,7 +15,6 @@ contract TestNFT is ERC721URIStorage {
     constructor() ERC721("piccAIso", "CPPN") {
     }
 
-
     // returns tokenid
     function mint(address sender, string memory metadataURI) public returns (uint256) {
         _tokenId.increment();
