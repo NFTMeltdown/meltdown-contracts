@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ME=0xf66FA0E475eE6Cc73f9C1Fa7c537a052488Cc04B
-NFT_CONTRACT=0x81319f7F729C9a9733b036258d523fC58CB3b0cD
+NFT_CONTRACT=0x757B6E1496292d80287F270D025Ba953ae7Ae6F9
 MAXINT=0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 ADDTOBID="addToBid(uint256)"
 echo "You have $(seth balance $ME) wei"
