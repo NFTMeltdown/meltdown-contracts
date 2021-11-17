@@ -138,7 +138,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
     function addToBid(uint256 auctionId) external payable {
         Auction storage a = idToAuction[auctionId];
         require(block.number <= a.finalBlock, "Auction is over");
-	require(msg.sender != a.seller, "You are the seller");
+        require(msg.sender != a.seller, "You are the seller");
         // If we are in regular time, aindex=0
         // Otherwise, start indexing from 1.
         uint256 aindex;
