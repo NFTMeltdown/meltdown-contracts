@@ -50,7 +50,6 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         mapping(address => uint256) cumululativeBidFromBidder;
     }
 
-
     modifier canBe64(uint256 _value) {
         require(_value < 18446744073709551615);
         _;
@@ -77,6 +76,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 	uint _closingBlock = sub(add(block.number, _auctionLengthBlocks), _closingLengthBlocks);
 	uint _finalBlock = add(block.number, _auctionLengthBlocks);
 
+	// Transfer the NFT from the seller to the contract
         IERC721(_tokenAddress).safeTransferFrom(
             msg.sender,
             address(this),
@@ -91,10 +91,12 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
         a.seller = msg.sender;
         a.closingBlock = _closingBlock;
         a.finalBlock = _finalBlock;
+
 	// Set address(0) to have the minimum bid.
+	// So winner must be > _minBid to win auction.
 	a.cumululativeBidFromBidder[a.currentHighestBidder] = _minBid;
 
-	// Plan to finalise the block straight afte rthe auction finishes
+	// Schedule to finalise the block straight after the auction finishes
         blocksToFinaliseAuctions[add(_finalBlock, 1)].push(auctionId);
         emit AuctionCreated(auctionId, _closingBlock, _finalBlock);
         return auctionId;
@@ -181,7 +183,8 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 			emit AuctionFinalised(
 			    auctionId,
 			    a.currentHighestBidder,
-			    winningBidAmount
+			    winningBidAmount)
+			    
 			);
 			return;
 		}
