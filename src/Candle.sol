@@ -183,8 +183,7 @@ contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Re
 			emit AuctionFinalised(
 			    auctionId,
 			    a.currentHighestBidder,
-			    winningBidAmount)
-			    
+			    winningBidAmount
 			);
 			return;
 		}
