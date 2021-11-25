@@ -25,7 +25,7 @@ contract Candle is
     address owner;
 
     event AuctionCreated(uint256 auctionId, uint256 closingBlock, uint256 finalBlock);
-    event AuctionFinalised(uint256 auctionId, address winner, uint256 amount, uint256 blockFinlised);
+    event AuctionFinalised(uint256 auctionId, address winner, uint256 amount, uint256 blockFinalised);
     event BidIncreased(uint256 auctionId, uint256 aindex, address bidder, uint256 amount, bool newHighestBidder);
 
     mapping(uint256 => Auction) public idToAuction;
