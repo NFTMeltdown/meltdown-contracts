@@ -6,6 +6,9 @@ Meltdown was written using [dapptools](https://github.com/dapphub/dapptools), a 
 
 The Meltdown frontend code can be found [here](https://github.com/VasilyGerrans/chainlink-fall-2021-hackathon).
 
+## About
+
+
 ## Installation
 
 First install [dapptools](https://github.com/dapphub/dapptools)
