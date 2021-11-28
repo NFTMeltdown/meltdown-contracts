@@ -10,12 +10,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 /// @title A candle-auction contract for ERC721 tokens.
 /// @author calebcheng00 and VasilyGerrans
-contract Candle is
-    KeeperCompatibleInterface,
-    VRFConsumerBase,
-    DSMath,
-    IERC721Receiver
-{
+contract Candle is KeeperCompatibleInterface, VRFConsumerBase, DSMath, IERC721Receiver {
     using Counters for Counters.Counter;
     Counters.Counter private auctionIdCounter;
 
@@ -55,6 +50,17 @@ contract Candle is
         mapping(address => uint256) cumululativeBidFromBidder;
     }
 
+    //////////////////////////////////////////////////////
+    ////////////   STATE-CHANGING FUNCTIONS   ////////////
+    //////////////////////////////////////////////////////
+
+    /// @notice Create an auction with an approved ERC721 and parameters
+    /// @param _tokenAddress ERC721 address
+    /// @param _tokenId ERC721 tokenId
+    /// @param _auctionLengthBlocks length of auction in blocks
+    /// @param _closingLengthBlocks length of closing window in blocks
+    /// @param _minBid address(0) will be set to have this bid
+    /// @return ID of auction
     function createAuction(
         address _tokenAddress,
         uint256 _tokenId,
@@ -66,16 +72,11 @@ contract Candle is
             IERC721(_tokenAddress).ownerOf(_tokenId) == msg.sender,
             "You are not the owner"
         );
-        // auction must last at least 50 blocks (~ 10 minutes)
-        // require(_closingBlock > add(block.number, 50), "Too short");
-        // require at least 20 (~240s) closing blocks
-        // uint256 closingWindow = sub(_finalBlock, _closingBlock);
-        // require(closingWindow >= 20, "Closing window short");
-        require(_auctionLengthBlocks > _closingLengthBlocks, "Invalid length");
-        uint256 _closingBlock = sub(
-            add(block.number, _auctionLengthBlocks),
-            _closingLengthBlocks
-        );
+        // Auction must last at least 50 blocks (~ 10 minutes)
+        require(_auctionLengthBlocks > 50, "Auction length too short");
+        // Closing length must be 20% of total length
+        require(_closingLengthBlocks > 10, "Closing length too short");
+        uint256 _closingBlock = sub( add(block.number, _auctionLengthBlocks), _closingLengthBlocks);
         uint256 _finalBlock = add(block.number, _auctionLengthBlocks);
 
         // Transfer the NFT from the seller to the contract
@@ -104,27 +105,16 @@ contract Candle is
         return auctionId;
     }
 
-    function getHighestBid(uint256 auctionId)
-        public
-        view
-        returns (address, uint256)
-    {
-        Auction storage a = idToAuction[auctionId];
-        return (
-            a.currentHighestBidder,
-            a.cumululativeBidFromBidder[a.currentHighestBidder]
-        );
-    }
-
+    /// @notice Cancel an auction 
+    /// @param auctionId ID of auction
+    /// @dev Requires the highest current bid to be below the min bid. 
     function cancelAuction(uint256 auctionId) external {
         Auction storage a = idToAuction[auctionId];
         require(msg.sender == a.seller);
         // Cannot cancel an auction while it is in finalisation phase.
-        require(
-            a.currentHighestBidder == address(0),
-            "Highest bid above min. Can't cancel."
-        );
+        require( a.currentHighestBidder == address(0), "Highest bid above min. Can't cancel.");
         // Don't need to finalise auction anymore
+        // We can remove it from the schedule Chainlink Keeper block
         uint256 i;
         uint256[] storage arr = blocksToFinaliseAuctions[a.finalBlock + 1];
         while (arr[i] != auctionId) {
@@ -133,19 +123,12 @@ contract Candle is
         arr[i] = arr[arr.length - 1];
         arr.pop();
         a.finalBlock = 0;
-        // Finalise the auction
         emit AuctionFinalised(auctionId, address(0), 0, 0);
     }
 
-    function currentCumulativeBid(uint256 auctionId, address bidder)
-        external
-        view
-        returns (uint256)
-    {
-        Auction storage a = idToAuction[auctionId];
-        return a.cumululativeBidFromBidder[bidder];
-    }
-
+    /// @notice Add to the msg.sender current bid. 
+    /// @param auctionId ID of auction
+    /// @dev Doesn't necessarily have to be greater than the current highest bid. 
     function addToBid(uint256 auctionId) external payable {
         Auction storage a = idToAuction[auctionId];
         require(block.number <= a.finalBlock, "Auction is over");
@@ -159,11 +142,9 @@ contract Candle is
 
         a.cumululativeBidFromBidder[msg.sender] += msg.value;
 
-        if (
-            msg.sender != a.currentHighestBidder &&
-            (a.cumululativeBidFromBidder[msg.sender] >
-                a.cumululativeBidFromBidder[a.currentHighestBidder])
-        ) {
+        // If the bid creates a new highest bidder
+        if ( msg.sender != a.currentHighestBidder &&
+         (a.cumululativeBidFromBidder[msg.sender] > a.cumululativeBidFromBidder[a.currentHighestBidder])) {
             a.highestBidderAtIndex[aindex] = msg.sender;
             a.currentHighestBidder = msg.sender;
             a.highestBidderChangedAt.push(aindex);
@@ -173,24 +154,22 @@ contract Candle is
         emit BidIncreased(auctionId, aindex, msg.sender, msg.value, false);
     }
 
+    /// @notice Called by Chainlink VRF callback function to finalise an auction. 
+    /// @param auctionId ID of auction
+    /// @param randomness Verifiable random uint256 from Chainlink. 
+    /// @dev This function should only be called by a Chainlink node. 
     function finaliseAuction(uint256 auctionId, uint256 randomness) internal {
         Auction storage a = idToAuction[auctionId];
         require(block.number > a.finalBlock, "Auction is not over");
         require(a.finalBlock != 0, "Auction already finalised");
-        uint256 closing_index = add(
-            randomness % sub(a.finalBlock, a.closingBlock),
-            1
-        );
+        uint256 closing_index = add( randomness % sub(a.finalBlock, a.closingBlock), 1);
         a.finalBlock = 0;
-        // work backwards from the last highestBidderChangedAt until it is below the lastBlock
+        // Work backwards from the last highestBidderChangedAt until it is below the lastBlock
         for (uint256 b = a.highestBidderChangedAt.length; b > 0; b--) {
             if (a.highestBidderChangedAt[b - 1] <= closing_index) {
-                a.currentHighestBidder = a.highestBidderAtIndex[
-                    a.highestBidderChangedAt[b - 1]
-                ];
-                uint256 winningBidAmount = a.cumululativeBidFromBidder[
-                    a.currentHighestBidder
-                ];
+                a.currentHighestBidder = a.highestBidderAtIndex[ a.highestBidderChangedAt[b - 1] ];
+                uint256 winningBidAmount = a.cumululativeBidFromBidder[ a.currentHighestBidder ];
+
                 emit AuctionFinalised(
                     auctionId,
                     a.currentHighestBidder,
@@ -200,7 +179,7 @@ contract Candle is
                 return;
             }
         }
-        // there were no bids at all.
+        // There were no bids at all.
         emit AuctionFinalised(
             auctionId,
             address(0),
@@ -209,12 +188,14 @@ contract Candle is
         );
     }
 
+    /// @notice Withdraw the msg.sender's result of an auction. ERC721/ETH
+    /// @param auctionId ID of auction
     function withdraw(uint256 auctionId) external {
         Auction storage a = idToAuction[auctionId];
         require(a.finalBlock == 0, "Auction not finalised");
         if (msg.sender != a.seller) {
-            // if sender won the auction, transfer them the NFT
-            // otherwise sender lost, transfer them their money back.
+            // If sender won the auction, transfer them the NFT
+            // Otherwise sender lost, transfer them their money back.
             if (msg.sender == a.currentHighestBidder) {
                 IERC721(a.tokenAddress).safeTransferFrom(
                     address(this),
@@ -222,18 +203,14 @@ contract Candle is
                     a.tokenId
                 );
             } else {
-                uint256 senderLosingBidAmount = a.cumululativeBidFromBidder[
-                    msg.sender
-                ];
+                uint256 senderLosingBidAmount = a.cumululativeBidFromBidder[ msg.sender ];
                 a.cumululativeBidFromBidder[msg.sender] = 0;
-                (bool success, ) = msg.sender.call{
-                    value: senderLosingBidAmount
-                }("");
+                (bool success, ) = msg.sender.call{ value: senderLosingBidAmount }("");
                 require(success, "Transfer failed.");
             }
         } else {
-            // if there were no bids, return nft
-            // otherwise return proceeds.
+            // If there were no bids, return nft
+            // Otherwise return proceeds.
             if (a.currentHighestBidder == address(0)) {
                 IERC721(a.tokenAddress).safeTransferFrom(
                     address(this),
@@ -241,9 +218,7 @@ contract Candle is
                     a.tokenId
                 );
             } else {
-                uint256 winningBidAmount = a.cumululativeBidFromBidder[
-                    a.currentHighestBidder
-                ];
+                uint256 winningBidAmount = a.cumululativeBidFromBidder[ a.currentHighestBidder ];
                 a.cumululativeBidFromBidder[a.currentHighestBidder] = 0;
                 (bool success, ) = msg.sender.call{value: winningBidAmount}("");
                 require(success, "Transfer failed.");
@@ -251,60 +226,28 @@ contract Candle is
         }
     }
 
-    // Convenience getter methods to get everything about an auction
-    function getAuction(uint256 auctionId)
-        public
-        view
-        returns ( address, uint256, address, uint256, uint256, address, uint256[] memory)
-    {
-        Auction storage a = idToAuction[auctionId];
-        return (
-            a.tokenAddress,
-            a.tokenId,
-            a.seller,
-            a.closingBlock,
-            a.finalBlock,
-            a.currentHighestBidder,
-            a.highestBidderChangedAt
-        );
-    }
+    //////////////////////////////////////////////////////
+    //////////////   CHAINLINK FUNCTIONS   ///////////////
+    //////////////////////////////////////////////////////
 
-    function getAuctionHighestBidderAtIndex(uint256 auctionId, uint256 index)
-        public
-        view
-        returns (address)
-    {
-        Auction storage a = idToAuction[auctionId];
-        return a.highestBidderAtIndex[index];
-    }
-
-    function getCumulativeBidFromBidder(uint256 auctionId, address bidder)
-        public
-        view
-        returns (uint256)
-    {
-        Auction storage a = idToAuction[auctionId];
-        return a.cumululativeBidFromBidder[bidder];
-    }
-
+    /// @dev Should be treated like a view function. 
     function checkUpkeep(
         bytes calldata /*checkData*/
     ) external override returns (bool upkeepNeeded, bytes memory performData) {
-        // check whether an auction needs finalising in the last 100 blocks
+        // Check whether an auction needs finalising in the last 100 blocks
         for (uint256 i; i < 100; i++) {
             if (blocksToFinaliseAuctions[block.number - i].length > 0) {
                 return (
                     true,
-                    abi.encode(
-                        block.number - i,
-                        blocksToFinaliseAuctions[block.number - i]
-                    )
+                    abi.encode( block.number - i, blocksToFinaliseAuctions[block.number - i])
                 );
             }
         }
         return (false, bytes(""));
     }
 
+    /// @notice Called by a Keeper node if an auction is finished (checkUpkeep==true)
+    /// @dev Requests a random number from CL network. 
     function performUpkeep(bytes calldata performData) external override {
         (uint256 blockNum, uint256[] memory requestIdsToFinalise) = abi.decode(
             performData,
@@ -315,13 +258,13 @@ contract Candle is
             "Not enough LINK"
         );
         for (uint256 i; i < requestIdsToFinalise.length; i++) {
-            requestIdToAuction[
-                requestRandomness(keyHash, fee)
-            ] = requestIdsToFinalise[i];
+            requestIdToAuction[ requestRandomness(keyHash, fee) ] = requestIdsToFinalise[i];
         }
         delete blocksToFinaliseAuctions[blockNum];
     }
 
+    /// @notice Chainlink VRF callback function that finalises an auction
+    /// @dev Should only be able to be called by CL
     function fulfillRandomness(bytes32 requestId, uint256 randomness)
         internal
         override
@@ -342,6 +285,67 @@ contract Candle is
         require(msg.sender == owner, "Only owner can manualRequestRandomness");
         require(LINK.balanceOf(address(this)) > fee, "Not enough LINK");
         requestIdToAuction[requestRandomness(keyHash, fee)] = auctionToFinalise;
+    }
+
+    //////////////////////////////////////////////////////
+    /////////////////   VIEW FUNCTIONS   /////////////////
+    //////////////////////////////////////////////////////
+
+    function currentCumulativeBid(uint256 auctionId, address bidder)
+        external
+        view
+        returns (uint256)
+    {
+        Auction storage a = idToAuction[auctionId];
+        return a.cumululativeBidFromBidder[bidder];
+    }
+
+    // Convenience getter methods to get everything about an auction
+    function getAuction(uint256 auctionId)
+        public
+        view
+        returns ( address, uint256, address, uint256, uint256, address, uint256[] memory)
+    {
+        Auction storage a = idToAuction[auctionId];
+        return (
+            a.tokenAddress,
+            a.tokenId,
+            a.seller,
+            a.closingBlock,
+            a.finalBlock,
+            a.currentHighestBidder,
+            a.highestBidderChangedAt
+        );
+    }
+
+    function getHighestBid(uint256 auctionId)
+        public
+        view
+        returns (address, uint256)
+    {
+        Auction storage a = idToAuction[auctionId];
+        return (
+            a.currentHighestBidder,
+            a.cumululativeBidFromBidder[a.currentHighestBidder]
+        );
+    }
+
+    function getAuctionHighestBidderAtIndex(uint256 auctionId, uint256 index)
+        public
+        view
+        returns (address)
+    {
+        Auction storage a = idToAuction[auctionId];
+        return a.highestBidderAtIndex[index];
+    }
+
+    function getCumulativeBidFromBidder(uint256 auctionId, address bidder)
+        public
+        view
+        returns (uint256)
+    {
+        Auction storage a = idToAuction[auctionId];
+        return a.cumululativeBidFromBidder[bidder];
     }
 
     function onERC721Received(
